@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Home Alliance",
+    "slug": "home-alliance-2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "homealliance2",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zayinm.homealliance2",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location to show nearby contractors/customers.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location for background tracking.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to location for background tracking.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "server",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      ["react-native-maps", 
+    {
+      "iosGoogleMapsApiKey": "AIzaSyAB2V3XYyneeuo2VU4BULLAlw19CzoRZd0"
+    }],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "This app needs access to location for background tracking.",
+          "locationWhenInUsePermission": "This app needs access to location to show nearby contractors/customers.",
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a70440f0-cb4f-4b5c-8d98-4bdfde4c1504"
+      }
+    },
+    "owner": "zayinm"
+  }
+}
