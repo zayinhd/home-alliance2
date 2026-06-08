@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 import {
     View,
     Text,
@@ -5,34 +7,14 @@ import {
     TextInput,
     TouchableOpacity,
     ScrollView,
+    ActivityIndicator,
 } from "react-native";
+
+import { router } from "expo-router";
 
 import { Ionicons } from "@expo/vector-icons";
 
-import { useState } from "react";
-
-const contractors = [
-    {
-        id: "1",
-        name: "John Electric",
-        profession: "Electrician",
-    },
-    {
-        id: "2",
-        name: "Mike Plumbing",
-        profession: "Plumber",
-    },
-    {
-        id: "3",
-        name: "Sarah Cleaning",
-        profession: "Cleaner",
-    },
-    {
-        id: "4",
-        name: "Bright Paints",
-        profession: "Painter",
-    },
-];
+import { getContractors } from "@/services/contractor.service";
 
 const categories = [
     "Electrician",
@@ -46,12 +28,32 @@ const categories = [
 export default function DiscoverScreen() {
     const [search, setSearch] = useState("");
 
+    const [loading, setLoading] = useState(true);
+
+    const [contractors, setContractors] = useState<any[]>([]);
+
     const [selectedCategory, setSelectedCategory] = useState("");
+
+    useEffect(() => {
+        fetchContractors();
+    }, []);
+
+    const fetchContractors = async () => {
+        try {
+            const data = await getContractors();
+
+            setContractors(data || []);
+        } catch (error) {
+            console.log(error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const filteredContractors = contractors.filter((contractor) => {
         const matchesSearch =
-            contractor.name.toLowerCase().includes(search.toLowerCase()) ||
-            contractor.profession.toLowerCase().includes(search.toLowerCase());
+            contractor.username?.toLowerCase().includes(search.toLowerCase()) ||
+            contractor.profession?.toLowerCase().includes(search.toLowerCase());
 
         const matchesCategory =
             selectedCategory === ""
@@ -60,6 +62,14 @@ export default function DiscoverScreen() {
 
         return matchesSearch && matchesCategory;
     });
+
+    if (loading) {
+        return (
+            <View className="flex-1 items-center justify-center bg-white">
+                <ActivityIndicator size="large" color="#2a6ff2ff" />
+            </View>
+        );
+    }
 
     return (
         <View className="flex-1 bg-white px-6 pt-16">
@@ -79,7 +89,7 @@ export default function DiscoverScreen() {
                 />
             </View>
 
-            {/* CATEGORY SUGGESTIONS */}
+            {/* CATEGORIES */}
 
             <ScrollView
                 horizontal
@@ -133,16 +143,50 @@ export default function DiscoverScreen() {
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
-                    <TouchableOpacity className="bg-gray-100 p-5 rounded-2xl mb-4">
+                    <TouchableOpacity
+                        onPress={() =>
+                            router.push({
+                                pathname:
+                                    "/(root)/(customer)/contractor-profile",
+                                params: {
+                                    id: item.id,
+                                },
+                            })
+                        }
+                        className="bg-gray-100 p-5 rounded-2xl mb-4"
+                    >
                         <View className="flex-row items-center justify-between">
-                            <View>
-                                <Text className="text-lg font-Jost-Bold">
-                                    {item.name}
-                                </Text>
+                            <View className="flex-row items-center">
+                                <View className="w-14 h-14 rounded-full bg-primary items-center justify-center">
+                                    <Text className="text-white font-Jost-Bold text-lg">
+                                        {item.username
+                                            ?.substring(0, 2)
+                                            .toUpperCase()}
+                                    </Text>
+                                </View>
 
-                                <Text className="text-gray-500 mt-1">
-                                    {item.profession}
-                                </Text>
+                                <View className="ml-4">
+                                    <Text className="text-lg font-Jost-Bold">
+                                        {item.username}
+                                    </Text>
+
+                                    <Text className="text-gray-500 mt-1">
+                                        {item.profession}
+                                    </Text>
+
+                                    <View className="flex-row items-center mt-2">
+                                        <Ionicons
+                                            name="star"
+                                            size={16}
+                                            color="#f29f05ff"
+                                        />
+
+                                        <Text className="ml-1 text-gray-600">
+                                            {item.rating} ({item.reviews_count}{" "}
+                                            reviews)
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
 
                             <Ionicons
