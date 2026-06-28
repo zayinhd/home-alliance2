@@ -1,4 +1,11 @@
-import { View, Text, FlatList, TouchableOpacity } from "react-native";
+import { useEffect, useState } from "react";
+import {
+    View,
+    Text,
+    FlatList,
+    TouchableOpacity,
+    ActivityIndicator,
+} from "react-native";
 
 import { router } from "expo-router";
 
@@ -7,29 +14,33 @@ import { Ionicons } from "@expo/vector-icons";
 import LiveMap from "@/components/map/LiveMap";
 
 import ProtectedRoute from "@/components/feature/ProtectedRoute";
-
-const nearbyContractors = [
-    {
-        id: "1",
-        name: "John Electric",
-        profession: "Electrician",
-        rating: "4.9",
-    },
-    {
-        id: "2",
-        name: "Mike Plumbing",
-        profession: "Plumber",
-        rating: "4.7",
-    },
-    {
-        id: "3",
-        name: "Sarah Cleaning",
-        profession: "Cleaner",
-        rating: "4.8",
-    },
-];
+import { getContractors } from "@/services/contractor.service";
 
 export default function CustomerHomeScreen() {
+    const [loading, setLoading] = useState(true);
+    const [providers, setProviders] = useState<any[]>([]);
+
+    useEffect(() => {
+        const loadProviders = async () => {
+            try {
+                const data = await getContractors();
+                setProviders(data || []);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadProviders();
+    }, []);
+
+    if (loading) {
+        return (
+            <View className="flex-1 items-center justify-center bg-white">
+                <ActivityIndicator size="large" color="#2a6ff2ff" />
+            </View>
+        );
+    }
+
     return (
         <ProtectedRoute allowedRoles={["customer"]}>
             <View className="flex-1 bg-white">
@@ -47,7 +58,7 @@ export default function CustomerHomeScreen() {
 
                 {/* MAP */}
 
-                <View className="h-[40%]">
+                <View className="h-[46%] px-6 pb-3">
                     <LiveMap />
                 </View>
 
@@ -56,10 +67,14 @@ export default function CustomerHomeScreen() {
                 <View className="flex-1 px-6 pt-5">
                     <View className="flex-row items-center justify-between mb-4">
                         <Text className="text-2xl font-Jost-Bold">
-                            Nearby Contractors
+                            Nearby Service Providers
                         </Text>
 
-                        <TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() =>
+                                router.push("/(root)/(customer)/discover")
+                            }
+                        >
                             <Text className="text-primary font-Jost-Medium">
                                 View All
                             </Text>
@@ -67,7 +82,7 @@ export default function CustomerHomeScreen() {
                     </View>
 
                     <FlatList
-                        data={nearbyContractors}
+                        data={providers.slice(0, 8)}
                         keyExtractor={(item) => item.id}
                         showsVerticalScrollIndicator={false}
                         renderItem={({ item }) => (
@@ -78,7 +93,7 @@ export default function CustomerHomeScreen() {
                                             "/(root)/(customer)/contractor-profile",
                                         params: {
                                             id: item.id,
-                                            name: item.name,
+                                            name: item.username,
                                             profession: item.profession,
                                             rating: item.rating,
                                         },
@@ -90,7 +105,7 @@ export default function CustomerHomeScreen() {
                                     <View className="flex-row items-center">
                                         <View className="w-14 h-14 rounded-full bg-primary items-center justify-center">
                                             <Text className="text-white font-Jost-Bold text-lg">
-                                                {item.name
+                                                {item.username
                                                     .substring(0, 2)
                                                     .toUpperCase()}
                                             </Text>
@@ -98,7 +113,7 @@ export default function CustomerHomeScreen() {
 
                                         <View className="ml-4">
                                             <Text className="text-lg font-Jost-Bold">
-                                                {item.name}
+                                                {item.username}
                                             </Text>
 
                                             <Text className="text-gray-500 mt-1">
@@ -113,7 +128,7 @@ export default function CustomerHomeScreen() {
                                                 />
 
                                                 <Text className="ml-1 text-gray-600">
-                                                    {item.rating}
+                                                    {item.rating || 0}
                                                 </Text>
                                             </View>
                                         </View>
@@ -139,7 +154,7 @@ export default function CustomerHomeScreen() {
                                     className="bg-primary py-3 rounded-2xl items-center mt-4"
                                 >
                                     <Text className="text-white font-Jost-Bold">
-                                        Request Job
+                                        Book Now
                                     </Text>
                                 </TouchableOpacity>
                             </TouchableOpacity>

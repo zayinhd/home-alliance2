@@ -81,7 +81,7 @@ export default function DiscoverScreen() {
                 <Ionicons name="search" size={20} color="#999" />
 
                 <TextInput
-                    placeholder="Search contractors..."
+                    placeholder="Search service providers..."
                     placeholderTextColor="#999"
                     value={search}
                     onChangeText={setSearch}
@@ -94,7 +94,7 @@ export default function DiscoverScreen() {
             <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                className="mb-2"
+                className="mb-2 pb-4"
             >
                 <TouchableOpacity
                     onPress={() => setSelectedCategory("")}
@@ -153,7 +153,7 @@ export default function DiscoverScreen() {
                                 },
                             })
                         }
-                        className="bg-gray-100 p-5 rounded-2xl mb-4"
+                        className="mt-4bg-gray-100 p-5 rounded-2xl mb-4"
                     >
                         <View className="flex-row items-center justify-between">
                             <View className="flex-row items-center">
