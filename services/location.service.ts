@@ -29,3 +29,16 @@ export const getNearbyUsers = async () => {
 
     return data;
 };
+
+export const getLocationsByUserIds = async (userIds: string[]) => {
+    if (!userIds.length) return [];
+
+    const { data, error } = await supabase
+        .from("locations")
+        .select("*")
+        .in("user_id", userIds);
+
+    if (error) throw error;
+
+    return data || [];
+};
