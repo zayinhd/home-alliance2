@@ -8,6 +8,17 @@ export default function ContractorTabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: "#2a6ff2ff",
+                tabBarStyle: {
+                    backgroundColor: "#fff",
+                    borderTopWidth: 1,
+                    borderTopColor: "#e5e7eb",
+                    marginHorizontal: 12,
+                    marginBottom: 10,
+                    borderRadius: 16,
+                    height: 64,
+                    paddingBottom: 8,
+                    paddingTop: 8,
+                },
             }}
         >
             <Tabs.Screen
@@ -26,6 +37,16 @@ export default function ContractorTabsLayout() {
                     title: "Post",
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="add-circle" color={color} size={size} />
+                    ),
+                }}
+            />
+
+            <Tabs.Screen
+                name="jobs"
+                options={{
+                    title: "Bookings",
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="briefcase" color={color} size={size} />
                     ),
                 }}
             />
@@ -53,14 +74,27 @@ export default function ContractorTabsLayout() {
                     ),
                 }}
             />
+
             <Tabs.Screen
-                name="jobs"
+                name="tracking"
                 options={{
                     href: null,
                 }}
             />
             <Tabs.Screen
-                name="my-posts"
+                name="edit-profile"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="verification"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
+                name="history"
                 options={{
                     href: null,
                 }}

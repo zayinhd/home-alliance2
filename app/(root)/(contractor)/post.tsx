@@ -28,7 +28,7 @@ export default function ContractorPostScreen() {
             setLoading(true);
 
             await createPost({
-                contractor_id: user.id,
+                service_provider_id: user.id,
                 title,
                 description,
                 status: "published",
@@ -52,7 +52,7 @@ export default function ContractorPostScreen() {
             setLoading(true);
 
             await createPost({
-                contractor_id: user.id,
+                service_provider_id: user.id,
                 title,
                 description,
                 status: "draft",
