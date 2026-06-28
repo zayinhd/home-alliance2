@@ -57,10 +57,10 @@ export default function LiveMap() {
     }
 
     return (
-        <View className="flex-1">
+        <View className="flex-1 rounded-3xl overflow-hidden">
             <MapView
                 style={{
-                    height: "50%",
+                    flex: 1,
                     width: "100%",
                 }}
                 showsUserLocation
