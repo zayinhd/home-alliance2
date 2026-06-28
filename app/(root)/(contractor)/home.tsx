@@ -79,13 +79,19 @@ export default function ContractorHomeScreen() {
     }
 
     return (
-        <ProtectedRoute allowedRoles={["contractor"]}>
+        <ProtectedRoute
+            allowedRoles={[
+                "contractor",
+                "service provider",
+                "service_provider",
+            ]}
+        >
             <View className="flex-1 bg-white">
                 {/* HEADER */}
 
                 <View className="px-6 pt-16 pb-4">
                     <Text className="text-3xl font-Jost-Bold">
-                        Contractor Home
+                        Service Provider Home
                     </Text>
 
                     <Text className="text-gray-500 mt-1">
@@ -141,7 +147,7 @@ export default function ContractorHomeScreen() {
 
                 {/* MAP */}
 
-                <View className="h-[35%]">
+                <View className="h-[42%] px-6 pb-3">
                     <LiveMap />
                 </View>
 

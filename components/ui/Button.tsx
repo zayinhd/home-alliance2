@@ -1,24 +1,25 @@
-import {
-    TouchableOpacity,
-    Text,
-    ActivityIndicator,
-} from "react-native";
+import { TouchableOpacity, Text, ActivityIndicator } from "react-native";
 
 interface Props {
     title: string;
-    onPress: () => void;
+    onPress: () => void | Promise<void>;
     loading?: boolean;
+    disabled?: boolean;
+    className?: string;
 }
 
 export default function Button({
     title,
     onPress,
     loading,
+    disabled,
+    className,
 }: Props) {
     return (
         <TouchableOpacity
             onPress={onPress}
-            className="bg-primary rounded-2xl py-4 items-center"
+            disabled={disabled}
+            className={`bg-primary rounded-2xl py-4 items-center ${className ?? ""}`}
         >
             {loading ? (
                 <ActivityIndicator color="#fff" />

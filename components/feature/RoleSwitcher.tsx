@@ -1,9 +1,4 @@
-import {
-    View,
-    Text,
-    Switch,
-    Alert,
-} from "react-native";
+import { View, Text, Switch, Alert } from "react-native";
 
 import { router } from "expo-router";
 
@@ -14,10 +9,11 @@ import { useAuth } from "@/hooks/useAuth";
 export default function RoleSwitcher() {
     const { role } = useAuth();
 
-    const [enabled, setEnabled] =
-        useState(
-            role === "contractor"
-        );
+    const [enabled, setEnabled] = useState(
+        role === "contractor" ||
+            role === "service_provider" ||
+            role === "service provider",
+    );
 
     const toggleSwitch = () => {
         const nextState = !enabled;
@@ -25,23 +21,13 @@ export default function RoleSwitcher() {
         setEnabled(nextState);
 
         if (nextState) {
-            router.replace(
-                "/(root)/(contractor)/home"
-            );
+            router.replace("/(root)/(contractor)/home");
 
-            Alert.alert(
-                "Switched",
-                "Contractor mode enabled"
-            );
+            Alert.alert("Switched", "Contractor mode enabled");
         } else {
-            router.replace(
-                "/(root)/(customer)/home"
-            );
+            router.replace("/(root)/(customer)/home");
 
-            Alert.alert(
-                "Switched",
-                "Customer mode enabled"
-            );
+            Alert.alert("Switched", "Customer mode enabled");
         }
     };
 
@@ -57,10 +43,7 @@ export default function RoleSwitcher() {
                 </Text>
             </View>
 
-            <Switch
-                value={enabled}
-                onValueChange={toggleSwitch}
-            />
+            <Switch value={enabled} onValueChange={toggleSwitch} />
         </View>
     );
 }

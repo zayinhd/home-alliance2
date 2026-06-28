@@ -4,7 +4,7 @@ interface SignUpData {
     username: string;
     email: string;
     password: string;
-    role: "customer" | "contractor";
+    role: "customer" | "service provider" | "contractor";
 }
 
 export const signUp = async ({
@@ -29,15 +29,11 @@ export const signUp = async ({
     return data;
 };
 
-export const signIn = async (
-    email: string,
-    password: string
-) => {
-    const { data, error } =
-        await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+export const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
 
     if (error) throw error;
 

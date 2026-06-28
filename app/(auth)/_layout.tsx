@@ -5,6 +5,8 @@ export default function AuthLayout() {
         <Stack
             screenOptions={{
                 headerShown: false,
+                gestureEnabled: true,
+                fullScreenGestureEnabled: true,
             }}
         />
     );

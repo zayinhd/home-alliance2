@@ -127,7 +127,12 @@ export default function ContractorProfileScreen() {
                     <Ionicons name="briefcase" size={18} color="#2a6ff2ff" />
 
                     <Text className="ml-2 font-Jost-Medium text-base">
-                        {profile?.profession || "No profession added"}
+                        {Array.isArray(profile?.professions)
+                            ? profile.professions.join(", ") ||
+                              "No profession added"
+                            : profile?.professions ||
+                              profile?.profession ||
+                              "No profession added"}
                     </Text>
                 </View>
 

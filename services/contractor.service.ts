@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 interface CreatePostData {
-    contractor_id: string;
+    service_provider_id: string;
     title: string;
     description: string;
 }
@@ -15,20 +15,25 @@ export const getContractors = async () => {
             `
                     id,
                     username,
-                    profession,
+                    professions,
                     avatar_url,
                     rating,
                     reviews_count
                 `,
         )
-        .eq("role", "contractor")
+        .in("role", ["contractor", "service_provider", "service provider"])
         .order("rating", {
             ascending: false,
         });
 
     if (error) throw error;
 
-    return data;
+    return (data || []).map((item: any) => ({
+        ...item,
+        profession: Array.isArray(item.professions)
+            ? item.professions[0]
+            : item.professions,
+    }));
 };
 
 export const getContractorById = async (contractorId: string) => {
@@ -40,7 +45,12 @@ export const getContractorById = async (contractorId: string) => {
 
     if (error) throw error;
 
-    return data;
+    return {
+        ...data,
+        profession: Array.isArray(data?.professions)
+            ? data.professions[0]
+            : data?.professions,
+    };
 };
 
 export const getContractorReviews = async (contractorId: string) => {
@@ -54,7 +64,7 @@ export const getContractorReviews = async (contractorId: string) => {
                     )
                 `,
         )
-        .eq("contractor_id", contractorId)
+        .eq("service_provider_id", contractorId)
         .order("created_at", {
             ascending: false,
         });
@@ -66,14 +76,14 @@ export const getContractorReviews = async (contractorId: string) => {
 //End for Customers
 
 export const createContractorPost = async ({
-    contractor_id,
+    service_provider_id,
     title,
     description,
 }: CreatePostData) => {
     const { data, error } = await supabase
-        .from("contractor_posts")
+        .from("service_provider_posts")
         .insert({
-            contractor_id,
+            service_provider_id,
             title,
             description,
         })
@@ -87,7 +97,7 @@ export const createContractorPost = async ({
 
 export const getContractorPosts = async () => {
     const { data, error } = await supabase
-        .from("contractor_posts")
+        .from("service_provider_posts")
         .select(
             `
                 *,
