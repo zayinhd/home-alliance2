@@ -134,7 +134,7 @@ export default function AdminProfileScreen() {
                     Revenue: Ghc {stats?.totalRevenue ?? 0}
                 </Text>
             </View>
-
+            {/* 
             <View className="bg-gray-100 rounded-3xl p-5 mb-5">
                 <Text className="text-gray-700 font-Jost-Bold mb-3">
                     Account Details
@@ -151,7 +151,7 @@ export default function AdminProfileScreen() {
                 <Text className="text-gray-600 mt-1">
                     Status: {profile?.is_suspended ? "Suspended" : "Active"}
                 </Text>
-            </View>
+            </View> */}
 
             <TouchableOpacity
                 onPress={handleLogout}
