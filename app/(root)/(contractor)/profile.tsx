@@ -108,6 +108,14 @@ export default function ContractorProfileScreen() {
         );
     }
 
+    const isVerified = Boolean(profile?.is_verified);
+    const verificationLabel = isVerified ? "Verified Provider" : "Not Verified";
+    const verificationChipClass = isVerified ? "bg-emerald-100" : "bg-blue-100";
+    const verificationTextClass = isVerified
+        ? "text-emerald-700"
+        : "text-blue-700";
+    const verificationIconColor = isVerified ? "#047857" : "#1d4ed8";
+
     return (
         <ScrollView className="flex-1 bg-white px-6 pt-20">
             {/* PROFILE */}
@@ -120,6 +128,25 @@ export default function ContractorProfileScreen() {
                 </Text>
 
                 <Text className="text-gray-500 mt-1">{profile?.email}</Text>
+
+                <View
+                    className={`flex-row items-center mt-3 px-4 py-2 rounded-full ${verificationChipClass}`}
+                >
+                    <Ionicons
+                        name={
+                            isVerified
+                                ? "checkmark-circle"
+                                : "information-circle"
+                        }
+                        size={16}
+                        color={verificationIconColor}
+                    />
+                    <Text
+                        className={`ml-2 font-Jost-Medium text-sm ${verificationTextClass}`}
+                    >
+                        {verificationLabel}
+                    </Text>
+                </View>
 
                 {/* PROFESSION */}
 

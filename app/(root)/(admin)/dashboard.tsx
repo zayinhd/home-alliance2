@@ -135,6 +135,22 @@ export default function AdminDashboardScreen() {
                 <Text className="text-blue-900 text-lg font-Jost-Bold mb-3">
                     Quick Actions
                 </Text>
+                <TouchableOpacity
+                    onPress={() =>
+                        router.push({
+                            pathname: "/(root)/(admin)/verification",
+                            params: { status: "pending" },
+                        })
+                    }
+                    className="bg-white border border-blue-200 rounded-2xl px-4 py-3 mb-3"
+                >
+                    <Text className="text-blue-900 font-Jost-Bold">
+                        Review Pending Verifications
+                    </Text>
+                    <Text className="text-blue-700 mt-1">
+                        Pending: {stats?.pendingVerifications ?? 0}
+                    </Text>
+                </TouchableOpacity>
                 <View className="flex-row">
                     <TouchableOpacity
                         onPress={() =>

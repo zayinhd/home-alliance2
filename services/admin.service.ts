@@ -1,5 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
+const VERIFICATION_BUCKET = "national-registry";
+
 interface CreateAdminUserPayload {
     username: string;
     email: string;
@@ -220,7 +222,51 @@ export const getVerificationRequests = async (status?: string) => {
 
     if (error) throw error;
 
-    return data || [];
+    const requests = data || [];
+
+    const requestsWithSelfies = await Promise.all(
+        requests.map(async (item: any) => {
+            const userId = item?.profile?.id;
+
+            if (!userId) {
+                return {
+                    ...item,
+                    providerSelfieUrl: null,
+                };
+            }
+
+            const { data: files, error: listError } = await supabase.storage
+                .from(VERIFICATION_BUCKET)
+                .list(`${userId}/verifications`, {
+                    limit: 1,
+                    offset: 0,
+                    sortBy: {
+                        column: "created_at",
+                        order: "desc",
+                    },
+                });
+
+            if (listError || !files?.length || !files[0]?.name) {
+                return {
+                    ...item,
+                    providerSelfieUrl: null,
+                };
+            }
+
+            const path = `${userId}/verifications/${files[0].name}`;
+
+            const { data: publicData } = supabase.storage
+                .from(VERIFICATION_BUCKET)
+                .getPublicUrl(path);
+
+            return {
+                ...item,
+                providerSelfieUrl: publicData?.publicUrl ?? null,
+            };
+        }),
+    );
+
+    return requestsWithSelfies;
 };
 
 export const approveVerification = async (
