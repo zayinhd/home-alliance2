@@ -20,8 +20,25 @@ import Button from "@/components/ui/Button";
 
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
+import { verifyFaces } from "../../../services/verification.service";
 
-const VERIFICATION_BUCKET = "verification";
+const VERIFICATION_BUCKET = "national-registry";
+
+const normalizeNationalId = (value: string) => value.replace(/\s+/g, "").trim();
+
+const maskNationalId = (value: string) => {
+    if (!value) return "";
+    if (value.length <= 4) return value;
+    return `${"*".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+};
+
+const formatSupabaseError = (error: any) => ({
+    message: error?.message,
+    code: error?.code,
+    details: error?.details,
+    hint: error?.hint,
+    status: error?.status,
+});
 
 export default function VerificationScreen() {
     const { user } = useAuth();
@@ -37,11 +54,26 @@ export default function VerificationScreen() {
     const loadExistingVerification = async () => {
         if (!user?.id) return;
 
-        const { data } = await supabase
+        console.log("[verification] loadExistingVerification:start", {
+            userId: user.id,
+        });
+
+        const { data, error } = await supabase
             .from("user_verifications")
             .select("verification_status")
             .eq("user_id", user.id)
             .maybeSingle();
+
+        if (error) {
+            console.error(
+                "[verification] loadExistingVerification:error",
+                formatSupabaseError(error),
+            );
+        } else {
+            console.log("[verification] loadExistingVerification:success", {
+                status: data?.verification_status ?? "not_submitted",
+            });
+        }
 
         if (data?.verification_status) {
             setStatus(data.verification_status);
@@ -81,7 +113,15 @@ export default function VerificationScreen() {
 
     const handleVerification = async () => {
         try {
-            if (!nationalId.trim()) {
+            const normalizedNationalId = normalizeNationalId(nationalId);
+
+            console.log("[verification] handleVerification:start", {
+                userId: user?.id,
+                hasImage: Boolean(imageUri),
+                nationalId: maskNationalId(normalizedNationalId),
+            });
+
+            if (!normalizedNationalId) {
                 return Alert.alert(
                     "Validation Error",
                     "National ID is required",
@@ -101,21 +141,70 @@ export default function VerificationScreen() {
 
             setLoading(true);
 
+            // Refresh session to ensure JWT is valid
+            const { error: refreshError } =
+                await supabase.auth.refreshSession();
+            if (refreshError) {
+                console.error(
+                    "[verification] refreshSession:error",
+                    formatSupabaseError(refreshError),
+                );
+                throw new Error("Session expired. Please log in again.");
+            }
+
+            console.log("[verification] refreshSession:success");
+
+            const { data: registry, error: registryLookupError } =
+                await supabase
+                    .from("national_registry")
+                    .select("id, national_id_number, photo_url")
+                    .eq("national_id_number", normalizedNationalId)
+                    .maybeSingle();
+
+            if (registryLookupError) {
+                console.error(
+                    "[verification] registryLookup:error",
+                    formatSupabaseError(registryLookupError),
+                );
+                throw new Error(registryLookupError.message);
+            }
+
+            console.log("[verification] registryLookup:success", {
+                found: Boolean(registry),
+                registryId: registry?.id,
+            });
+
+            if (!registry) {
+                throw new Error("National ID not found in registry.");
+            }
+
+            if (!registry.photo_url) {
+                throw new Error("Registry photo is missing for this ID.");
+            }
+
             const fileResponse = await fetch(imageUri);
             const selfieBlob = await fileResponse.blob();
 
-            const filePath = `${user.id}/${Date.now()}-selfie.jpg`;
+            const filePath = `${user.id}/verifications/${Date.now()}-selfie.jpg`;
 
             const { error: uploadError } = await supabase.storage
                 .from(VERIFICATION_BUCKET)
                 .upload(filePath, selfieBlob, {
                     contentType: "image/jpeg",
-                    upsert: true,
                 });
 
             if (uploadError) {
+                console.error(
+                    "[verification] selfieUpload:error",
+                    formatSupabaseError(uploadError),
+                );
                 throw new Error(uploadError.message);
             }
+
+            console.log("[verification] selfieUpload:success", {
+                bucket: VERIFICATION_BUCKET,
+                filePath,
+            });
 
             const { data: publicData } = supabase.storage
                 .from(VERIFICATION_BUCKET)
@@ -123,62 +212,59 @@ export default function VerificationScreen() {
 
             const selfieUrl = publicData.publicUrl;
 
-            const { error: registryError } = await supabase
-                .from("national_registry")
-                .upsert(
-                    {
-                        id: user.id,
-                        full_name: user.user_metadata?.username || "",
-                        national_id_number: nationalId.trim(),
-                        photo_url: selfieUrl,
-                    },
-                    {
-                        onConflict: "id",
-                    },
+            console.log("[verification] selfiePublicUrl:created", {
+                url: selfieUrl,
+            });
+
+            console.log("[verification] faceVerification:start", {
+                selfieUrl,
+                registryPhotoUrl: registry.photo_url,
+                nationalId: maskNationalId(normalizedNationalId),
+            });
+
+            const { matched: isMatch, similarityScore } = await verifyFaces({
+                selfieUri: imageUri,
+                nationalId: normalizedNationalId,
+                userId: user.id,
+            });
+
+            const verificationStatus = isMatch ? "verified" : "failed";
+
+            console.log("[verification] faceVerification:success", {
+                isMatch,
+                similarityScore,
+            });
+
+            console.log("[verification] persistence:backend-owned", {
+                userId: user.id,
+                verificationStatus,
+            });
+
+            setStatus(verificationStatus);
+
+            loadExistingVerification().catch((loadError) => {
+                console.error(
+                    "[verification] loadExistingVerification:post-check:error",
+                    loadError,
                 );
+            });
 
-            if (registryError) {
-                throw new Error(registryError.message);
-            }
-
-            const { error: verificationError } = await supabase
-                .from("user_verifications")
-                .upsert(
-                    {
-                        user_id: user.id,
-                        registry_id: user.id,
-                        verification_status: "pending",
-                        similarity_score: null,
-                        verified_at: null,
-                    },
-                    {
-                        onConflict: "user_id",
-                    },
+            if (isMatch) {
+                Alert.alert(
+                    "Verification Successful",
+                    "Your identity has been verified from the registry.",
                 );
-
-            if (verificationError) {
-                throw new Error(verificationError.message);
+            } else {
+                Alert.alert(
+                    "Verification Failed",
+                    "Face does not match the registry photo.",
+                );
             }
-
-            const { error: profileError } = await supabase
-                .from("profiles")
-                .update({
-                    is_verified: false,
-                    verification_status: "pending",
-                })
-                .eq("id", user.id);
-
-            if (profileError) {
-                throw new Error(profileError.message);
-            }
-
-            setStatus("pending");
-
-            Alert.alert(
-                "Verification Submitted",
-                "Your verification request has been submitted for admin review.",
-            );
         } catch (error: any) {
+            console.error("[verification] handleVerification:failed", {
+                message: error?.message,
+                stack: error?.stack,
+            });
             Alert.alert("Verification Failed", error.message);
         } finally {
             setLoading(false);
@@ -222,12 +308,12 @@ export default function VerificationScreen() {
 
                 <TouchableOpacity
                     onPress={pickImage}
-                    className="border-2 border-dashed border-primary rounded-3xl h-64 w-full self-center items-center justify-center overflow-hidden"
+                    className="border-2 border-dashed border-primary rounded-full h-64 w-full self-center items-center justify-center overflow-hidden"
                 >
                     {imageUri ? (
                         <Image
                             source={{ uri: imageUri }}
-                            className="w-full h-full rounded-3xl"
+                            className="w-full h-full rounded-full"
                         />
                     ) : (
                         <View className="items-center">
