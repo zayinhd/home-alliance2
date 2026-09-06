@@ -26,6 +26,12 @@ export default function SignUpScreen() {
 
     const handleSignUp = async () => {
         try {
+            const trimmedUsername = username.trim();
+
+            if (!trimmedUsername) {
+                return Alert.alert("Error", "Username is required");
+            }
+
             if (password !== confirmPassword) {
                 return Alert.alert("Error", "Passwords do not match");
             }
@@ -33,7 +39,7 @@ export default function SignUpScreen() {
             setLoading(true);
 
             await signUp({
-                username,
+                username: trimmedUsername,
                 email,
                 password,
                 role,

@@ -291,16 +291,17 @@ export const submitJobReview = async (
     if (reviewFetchError) throw reviewFetchError;
 
     const reviewCount = reviewRows?.length || 0;
-    const averageRating =
-        reviewCount > 0
-            ? reviewRows.reduce((sum, row) => sum + (Number(row.rating) || 0), 0) /
-              reviewCount
-            : 0;
+    const totalRating = reviewRows.reduce(
+        (sum, row) => sum + (Number(row.rating) || 0),
+        0,
+    );
+    const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+    const normalizedRating = Number(averageRating.toFixed(1));
 
     const { error: profileUpdateError } = await supabase
         .from("profiles")
         .update({
-            rating: Number(averageRating.toFixed(1)),
+            rating: normalizedRating,
             reviews_count: reviewCount,
         })
         .eq("id", serviceProviderId);

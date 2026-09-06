@@ -148,6 +148,16 @@ export default function ContractorProfileScreen() {
 
                 <Text className="text-gray-500 mt-1">{profile?.email}</Text>
 
+                <Text className="text-gray-600 mt-2 text-center">
+                    {profile?.address || "Location not set yet"}
+                </Text>
+
+                <Text className="text-primary mt-2 text-xs font-Jost-Medium">
+                    {profile?.location_tracking_enabled
+                        ? "Location tracking is active"
+                        : "Location tracking is off"}
+                </Text>
+
                 <View
                     className={`flex-row items-center mt-3 px-4 py-2 rounded-full ${verificationChipClass}`}
                 >
