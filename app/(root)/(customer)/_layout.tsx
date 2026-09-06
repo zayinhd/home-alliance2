@@ -93,6 +93,12 @@ export default function CustomerTabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="review-job"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="history"
                 options={{
                     href: null,

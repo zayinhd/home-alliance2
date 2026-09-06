@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     View,
     Text,
@@ -7,7 +7,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -16,22 +16,48 @@ import LiveMap from "@/components/map/LiveMap";
 import ProtectedRoute from "@/components/feature/ProtectedRoute";
 import { getContractors } from "@/services/contractor.service";
 
+const renderStars = (value: number, size = 16) => {
+    const safeValue = Number(value) || 0;
+    const roundedValue = Math.round(safeValue);
+
+    return (
+        <View className="flex-row items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                    key={star}
+                    name={star <= roundedValue ? "star" : "star-outline"}
+                    size={size}
+                    color={star <= roundedValue ? "#fbbf24" : "#d1d5db"}
+                    style={{ marginRight: 2 }}
+                />
+            ))}
+        </View>
+    );
+};
+
 export default function CustomerHomeScreen() {
     const [loading, setLoading] = useState(true);
     const [providers, setProviders] = useState<any[]>([]);
 
-    useEffect(() => {
-        const loadProviders = async () => {
-            try {
-                const data = await getContractors();
-                setProviders(data || []);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadProviders();
+    const loadProviders = useCallback(async () => {
+        try {
+            setLoading(true);
+            const data = await getContractors();
+            setProviders(data || []);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        loadProviders();
+    }, [loadProviders]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadProviders();
+        }, [loadProviders]),
+    );
 
     if (loading) {
         return (
@@ -121,14 +147,9 @@ export default function CustomerHomeScreen() {
                                             </Text>
 
                                             <View className="flex-row items-center mt-2">
-                                                <Ionicons
-                                                    name="star"
-                                                    size={16}
-                                                    color="#f29f05ff"
-                                                />
-
-                                                <Text className="ml-1 text-gray-600">
-                                                    {item.rating || 0}
+                                                {renderStars(Number(item.rating) || 0, 15)}
+                                                <Text className="ml-2 text-gray-600 font-Jost-Medium">
+                                                    {Number(item.rating || 0).toFixed(1)}
                                                 </Text>
                                             </View>
                                         </View>

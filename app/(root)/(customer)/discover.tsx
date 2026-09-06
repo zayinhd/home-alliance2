@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
     View,
@@ -10,11 +10,30 @@ import {
     ActivityIndicator,
 } from "react-native";
 
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { Ionicons } from "@expo/vector-icons";
 
 import { getContractors } from "@/services/contractor.service";
+
+const renderStars = (value: number, size = 16) => {
+    const safeValue = Number(value) || 0;
+    const roundedValue = Math.round(safeValue);
+
+    return (
+        <View className="flex-row items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                    key={star}
+                    name={star <= roundedValue ? "star" : "star-outline"}
+                    size={size}
+                    color={star <= roundedValue ? "#fbbf24" : "#d1d5db"}
+                    style={{ marginRight: 2 }}
+                />
+            ))}
+        </View>
+    );
+};
 
 const categories = [
     "Electrician",
@@ -34,12 +53,9 @@ export default function DiscoverScreen() {
 
     const [selectedCategory, setSelectedCategory] = useState("");
 
-    useEffect(() => {
-        fetchContractors();
-    }, []);
-
-    const fetchContractors = async () => {
+    const fetchContractors = useCallback(async () => {
         try {
+            setLoading(true);
             const data = await getContractors();
 
             setContractors(data || []);
@@ -48,7 +64,17 @@ export default function DiscoverScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchContractors();
+    }, [fetchContractors]);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchContractors();
+        }, [fetchContractors]),
+    );
 
     const filteredContractors = contractors.filter((contractor) => {
         const matchesSearch =
@@ -175,14 +201,9 @@ export default function DiscoverScreen() {
                                     </Text>
 
                                     <View className="flex-row items-center mt-2">
-                                        <Ionicons
-                                            name="star"
-                                            size={16}
-                                            color="#f29f05ff"
-                                        />
-
-                                        <Text className="ml-1 text-gray-600">
-                                            {item.rating} ({item.reviews_count}{" "}
+                                        {renderStars(Number(item.rating) || 0, 15)}
+                                        <Text className="ml-2 text-gray-600 font-Jost-Medium">
+                                            {Number(item.rating || 0).toFixed(1)} ({item.reviews_count || 0}{" "}
                                             reviews)
                                         </Text>
                                     </View>

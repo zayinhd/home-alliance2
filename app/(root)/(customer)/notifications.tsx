@@ -1,15 +1,20 @@
 import {
     ActivityIndicator,
+    Alert,
     Linking,
     View,
     Text,
     FlatList,
     TouchableOpacity,
 } from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "@/hooks/useAuth";
+import { getCustomerBookings } from "@/services/job.service";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markNotificationAsRead } from "@/services/notification.service";
 
 export default function NotificationsScreen() {
+    const { user } = useAuth();
     const { notifications, loading, refreshNotifications } = useNotifications();
 
     const getPhoneFromMessage = (message: string) => {
@@ -20,6 +25,37 @@ export default function NotificationsScreen() {
 
     const handleOpenNotification = async (item: any) => {
         await markNotificationAsRead(item.id);
+
+        if (item.title === "Job Completed") {
+            try {
+                const jobs = await getCustomerBookings(user!.id, "completed");
+                const latestCompletedJob = jobs?.[0] || null;
+
+                if (latestCompletedJob) {
+                    router.push({
+                        pathname: "/(root)/(customer)/review-job",
+                        params: {
+                            job: JSON.stringify(latestCompletedJob),
+                        },
+                    });
+                } else {
+                    Alert.alert(
+                        "Job Completed",
+                        "Your service provider has completed the job. Please leave a review.",
+                    );
+                    router.push("/(root)/(customer)/jobs");
+                }
+            } catch (error) {
+                Alert.alert(
+                    "Job Completed",
+                    "Your service provider has completed the job. Please leave a review.",
+                );
+                router.push("/(root)/(customer)/jobs");
+            }
+
+            refreshNotifications();
+            return;
+        }
 
         const phone = getPhoneFromMessage(item.message || "");
 

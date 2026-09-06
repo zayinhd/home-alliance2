@@ -23,6 +23,25 @@ import { signOut } from "@/services/auth.service";
 
 import { supabase } from "@/lib/supabase";
 
+const renderStars = (value: number, size = 18) => {
+    const safeValue = Number(value) || 0;
+    const roundedValue = Math.round(safeValue);
+
+    return (
+        <View className="flex-row items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                    key={star}
+                    name={star <= roundedValue ? "star" : "star-outline"}
+                    size={size}
+                    color={star <= roundedValue ? "#fbbf24" : "#d1d5db"}
+                    style={{ marginRight: 2 }}
+                />
+            ))}
+        </View>
+    );
+};
+
 export default function ContractorProfileScreen() {
     const { user } = useAuth();
 
@@ -176,10 +195,10 @@ export default function ContractorProfileScreen() {
                 {/* RATINGS */}
 
                 <View className="flex-row items-center mt-4">
-                    <Ionicons name="star" size={20} color="#f29f05ff" />
+                    {renderStars(Number(profile?.rating) || 0, 18)}
 
-                    <Text className="ml-2 font-Jost-Bold text-lg">
-                        {profile?.rating || "0.0"} Rating
+                    <Text className="ml-2 font-Jost-Bold text-lg text-gray-700">
+                        {Number(profile?.rating || 0).toFixed(1)}
                     </Text>
 
                     <Text className="text-gray-500 ml-2">
