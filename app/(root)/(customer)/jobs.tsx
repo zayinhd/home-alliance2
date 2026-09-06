@@ -3,15 +3,25 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Modal,
     Text,
-    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
-import { getCustomerBookings, submitJobReview } from "@/services/job.service";
+import { getCustomerBookings } from "@/services/job.service";
+
+const getLatestCompletedJob = (jobList: any[] = []) => {
+    const completedJobs = jobList.filter((job) => job.status === "completed");
+
+    if (!completedJobs.length) return null;
+
+    return [...completedJobs].sort(
+        (a, b) =>
+            new Date(b.created_at || 0).getTime() -
+            new Date(a.created_at || 0).getTime(),
+    )[0];
+};
 
 const statusFilters = [
     "all",
@@ -29,11 +39,7 @@ export default function CustomerJobsScreen() {
     const [status, setStatus] = useState("all");
     const [loading, setLoading] = useState(true);
 
-    const [showReviewModal, setShowReviewModal] = useState(false);
-    const [selectedJob, setSelectedJob] = useState<any>(null);
-    const [rating, setRating] = useState("5");
-    const [comment, setComment] = useState("");
-    const [submittingReview, setSubmittingReview] = useState(false);
+    const [autoReviewTriggered, setAutoReviewTriggered] = useState(false);
 
     useEffect(() => {
         loadJobs();
@@ -46,6 +52,15 @@ export default function CustomerJobsScreen() {
             setLoading(true);
             const data = await getCustomerBookings(user.id, status);
             setJobs(data || []);
+
+            if (!autoReviewTriggered) {
+                const latestCompletedJob = getLatestCompletedJob(data || []);
+
+                if (latestCompletedJob) {
+                    openReview(latestCompletedJob);
+                    setAutoReviewTriggered(true);
+                }
+            }
         } catch (error: any) {
             Alert.alert("Error", error.message || "Unable to load bookings.");
         } finally {
@@ -54,30 +69,12 @@ export default function CustomerJobsScreen() {
     };
 
     const openReview = (job: any) => {
-        setSelectedJob(job);
-        setRating("5");
-        setComment("");
-        setShowReviewModal(true);
-    };
-
-    const handleSubmitReview = async () => {
-        if (!user?.id || !selectedJob?.service_provider_id) return;
-
-        try {
-            setSubmittingReview(true);
-            await submitJobReview(
-                user.id,
-                selectedJob.service_provider_id,
-                Number(rating) || 5,
-                comment.trim(),
-            );
-            Alert.alert("Success", "Review submitted.");
-            setShowReviewModal(false);
-        } catch (error: any) {
-            Alert.alert("Error", error.message || "Unable to submit review.");
-        } finally {
-            setSubmittingReview(false);
-        }
+        router.push({
+            pathname: "/(root)/(customer)/review-job",
+            params: {
+                job: JSON.stringify(job),
+            },
+        });
     };
 
     return (
@@ -170,51 +167,6 @@ export default function CustomerJobsScreen() {
                 />
             )}
 
-            <Modal visible={showReviewModal} transparent animationType="slide">
-                <View className="flex-1 justify-end bg-black/40">
-                    <View className="bg-white rounded-t-3xl p-5">
-                        <Text className="text-xl font-Jost-Bold mb-4">
-                            Leave a Review
-                        </Text>
-                        <TextInput
-                            placeholder="Rating (1-5)"
-                            keyboardType="numeric"
-                            value={rating}
-                            onChangeText={setRating}
-                            className="border border-gray-300 rounded-2xl px-4 py-3 mb-3"
-                        />
-                        <TextInput
-                            placeholder="Write your review"
-                            value={comment}
-                            onChangeText={setComment}
-                            multiline
-                            numberOfLines={4}
-                            className="border border-gray-300 rounded-2xl px-4 py-3 mb-4"
-                        />
-                        <View className="flex-row">
-                            <TouchableOpacity
-                                onPress={() => setShowReviewModal(false)}
-                                className="flex-1 border border-gray-300 rounded-2xl py-3 mr-2 items-center"
-                            >
-                                <Text className="font-Jost-Bold text-gray-700">
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleSubmitReview}
-                                disabled={submittingReview}
-                                className="flex-1 bg-primary rounded-2xl py-3 items-center"
-                            >
-                                <Text className="font-Jost-Bold text-white">
-                                    {submittingReview
-                                        ? "Submitting..."
-                                        : "Submit"}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }

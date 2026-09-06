@@ -6,13 +6,33 @@ interface CreatePostData {
     description: string;
 }
 
+const getReviewSummary = (rows: any[] = []) => {
+    const reviewMap = new Map<string, { count: number; total: number }>();
+
+    rows.forEach((row) => {
+        const providerId = row?.service_provider_id;
+
+        if (!providerId) return;
+
+        const existing = reviewMap.get(providerId) || { count: 0, total: 0 };
+
+        reviewMap.set(providerId, {
+            count: existing.count + 1,
+            total: existing.total + Number(row?.rating || 0),
+        });
+    });
+
+    return reviewMap;
+};
+
 //Start for Customers
 
 export const getContractors = async () => {
-    const { data, error } = await supabase
-        .from("profiles")
-        .select(
-            `
+    const [{ data, error }, { data: reviewRows }] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select(
+                `
                     id,
                     username,
                     professions,
@@ -20,33 +40,65 @@ export const getContractors = async () => {
                     rating,
                     reviews_count
                 `,
-        )
-        .in("role", ["contractor", "service_provider", "service provider"])
-        .order("rating", {
-            ascending: false,
-        });
+            )
+            .in("role", ["contractor", "service_provider", "service provider"])
+            .order("rating", {
+                ascending: false,
+            }),
+        supabase.from("reviews").select("service_provider_id, rating"),
+    ]);
 
     if (error) throw error;
 
-    return (data || []).map((item: any) => ({
-        ...item,
-        profession: Array.isArray(item.professions)
-            ? item.professions[0]
-            : item.professions,
-    }));
+    const reviewSummary = getReviewSummary(reviewRows || []);
+
+    return (data || []).map((item: any) => {
+        const reviewStats = reviewSummary.get(item.id) || { count: 0, total: 0 };
+        const count = Number(item.reviews_count ?? reviewStats.count ?? 0);
+        const rating =
+            count > 0
+                ? Number(
+                      reviewStats.total / count,
+                  )
+                : Number(item.rating ?? 0);
+
+        return {
+            ...item,
+            rating: Number(rating.toFixed(1)),
+            reviews_count: count,
+            profession: Array.isArray(item.professions)
+                ? item.professions[0]
+                : item.professions,
+        };
+    });
 };
 
 export const getContractorById = async (contractorId: string) => {
-    const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", contractorId)
-        .single();
+    const [{ data, error }, { data: reviewRows }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", contractorId).single(),
+        supabase
+            .from("reviews")
+            .select("service_provider_id, rating")
+            .eq("service_provider_id", contractorId),
+    ]);
 
     if (error) throw error;
 
+    const reviewStats = getReviewSummary(reviewRows || []);
+    const providerReviewStats = reviewStats.get(contractorId) || {
+        count: 0,
+        total: 0,
+    };
+    const reviewCount = Number(data?.reviews_count ?? providerReviewStats.count ?? 0);
+    const rating =
+        reviewCount > 0
+            ? Number((providerReviewStats.total / reviewCount).toFixed(1))
+            : Number(data?.rating ?? 0);
+
     return {
         ...data,
+        rating,
+        reviews_count: reviewCount,
         profession: Array.isArray(data?.professions)
             ? data.professions[0]
             : data?.professions,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -8,7 +8,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, useFocusEffect } from "expo-router";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +17,26 @@ import {
     getContractorReviews,
 } from "@/services/contractor.service";
 import { createBooking } from "@/services/job.service";
+import { Ionicons } from "@expo/vector-icons";
+
+const renderStars = (value: number, size = 16) => {
+    const safeValue = Number(value) || 0;
+    const roundedValue = Math.round(safeValue);
+
+    return (
+        <View className="flex-row items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                    key={star}
+                    name={star <= roundedValue ? "star" : "star-outline"}
+                    size={size}
+                    color={star <= roundedValue ? "#fbbf24" : "#d1d5db"}
+                    style={{ marginRight: 2 }}
+                />
+            ))}
+        </View>
+    );
+};
 
 export default function CustomerContractorProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,30 +52,34 @@ export default function CustomerContractorProfileScreen() {
     const [location, setLocation] = useState("");
     const [description, setDescription] = useState("");
 
-    useEffect(() => {
-        const load = async () => {
-            if (!id) return;
+    const load = useCallback(async () => {
+        if (!id) return;
 
-            try {
-                const [provider, providerReviews] = await Promise.all([
-                    getContractorById(id),
-                    getContractorReviews(id),
-                ]);
+        try {
+            setLoading(true);
+            const [provider, providerReviews] = await Promise.all([
+                getContractorById(id),
+                getContractorReviews(id),
+            ]);
 
-                setProfile(provider);
-                setReviews(providerReviews || []);
-            } catch (error: any) {
-                Alert.alert(
-                    "Error",
-                    error.message || "Unable to load provider.",
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        load();
+            setProfile(provider);
+            setReviews(providerReviews || []);
+        } catch (error: any) {
+            Alert.alert("Error", error.message || "Unable to load provider.");
+        } finally {
+            setLoading(false);
+        }
     }, [id]);
+
+    useEffect(() => {
+        load();
+    }, [load]);
+
+    useFocusEffect(
+        useCallback(() => {
+            load();
+        }, [load]),
+    );
 
     const handleBook = async () => {
         if (!user?.id || !id) return;
@@ -110,10 +134,15 @@ export default function CustomerContractorProfileScreen() {
                           profile?.profession ||
                           "General Services"}
                 </Text>
-                <Text className="text-white/80 mt-2">
-                    Rating: {profile?.rating || 0} (
-                    {profile?.reviews_count || 0} reviews)
-                </Text>
+                <View className="flex-row items-center mt-3">
+                    {renderStars(Number(profile?.rating) || 0, 18)}
+                    <Text className="text-white ml-2 font-Jost-Bold">
+                        {Number(profile?.rating || 0).toFixed(1)}
+                    </Text>
+                    <Text className="text-white/80 ml-2">
+                        ({profile?.reviews_count || 0} reviews)
+                    </Text>
+                </View>
             </View>
 
             <Text className="text-xl font-Jost-Bold mb-3">
@@ -165,10 +194,15 @@ export default function CustomerContractorProfileScreen() {
                         <Text className="font-Jost-Bold">
                             {item.customer?.username || "Customer"}
                         </Text>
-                        <Text className="text-gray-700 mt-1">
-                            Rating: {item.rating || 0}/5
-                        </Text>
-                        <Text className="text-gray-500 mt-1">
+
+                        <View className="flex-row items-center mt-2">
+                            {renderStars(Number(item.rating) || 0, 16)}
+                            <Text className="ml-2 text-gray-700 font-Jost-Medium">
+                                {Number(item.rating || 0).toFixed(1)}/5
+                            </Text>
+                        </View>
+
+                        <Text className="text-gray-500 mt-2">
                             {item.comment || "No comment"}
                         </Text>
                     </View>

@@ -1,5 +1,7 @@
 import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 
+import { useEffect, useState } from "react";
+
 import { router } from "expo-router";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +18,30 @@ import { supabase } from "@/lib/supabase";
 
 export default function CustomerProfileScreen() {
     const { user } = useAuth();
+    const [profile, setProfile] = useState<any>(null);
+
+    useEffect(() => {
+        const loadProfile = async () => {
+            if (!user?.id) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select(
+                        "username, email, address, location_tracking_enabled",
+                    )
+                    .eq("id", user.id)
+                    .single();
+
+                if (error) throw error;
+                setProfile(data || null);
+            } catch (error: any) {
+                console.warn("Failed to load profile address", error);
+            }
+        };
+
+        loadProfile();
+    }, [user?.id]);
 
     const handleLogout = async () => {
         try {
@@ -72,10 +98,28 @@ export default function CustomerProfileScreen() {
                 />
 
                 <Text className="text-2xl font-Jost-Bold mt-4">
-                    {user?.user_metadata?.username}
+                    {profile?.username || user?.user_metadata?.username}
                 </Text>
 
-                <Text className="text-gray-500 mt-1">{user?.email}</Text>
+                <Text className="text-gray-500 mt-1">
+                    {profile?.email || user?.email}
+                </Text>
+
+                <View className="mt-3 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200">
+                    <Text className="text-blue-700 text-xs font-Jost-Bold">
+                        Provider conversion: {user?.user_metadata?.role === "contractor" || user?.user_metadata?.role === "service_provider" || user?.user_metadata?.role === "service provider" ? "Active" : "Available"}
+                    </Text>
+                </View>
+
+                <Text className="text-gray-600 mt-2 text-center">
+                    {profile?.address || "Location not set yet"}
+                </Text>
+
+                <Text className="text-primary mt-2 text-xs font-Jost-Medium">
+                    {profile?.location_tracking_enabled
+                        ? "Location tracking is active"
+                        : "Location tracking is off"}
+                </Text>
             </View>
 
             {/* ROLE SWITCH */}
@@ -121,6 +165,21 @@ export default function CustomerProfileScreen() {
 
                         <Text className="ml-4 font-Jost-Medium text-base">
                             History
+                        </Text>
+                    </View>
+
+                    <Ionicons name="chevron-forward" size={20} color="#999" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    className="flex-row items-center justify-between bg-gray-100 p-5 rounded-2xl"
+                    onPress={() => router.push("/(root)/(customer)/become-provider")}
+                >
+                    <View className="flex-row items-center">
+                        <Ionicons name="briefcase" size={24} color="#2a6ff2ff" />
+
+                        <Text className="ml-4 font-Jost-Medium text-base">
+                            Want to become a service provider?
                         </Text>
                     </View>
 

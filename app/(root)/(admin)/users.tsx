@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import Button from "@/components/ui/Button";
 import { exportReportAsPdf } from "@/lib/report-export";
@@ -39,6 +40,25 @@ const initialForm = {
     profession: "",
     phone: "",
     isVerified: false,
+};
+
+const renderStars = (value: number, size = 14) => {
+    const safeValue = Number(value) || 0;
+    const roundedValue = Math.round(safeValue);
+
+    return (
+        <View className="flex-row items-center">
+            {[1, 2, 3, 4, 5].map((star) => (
+                <Ionicons
+                    key={star}
+                    name={star <= roundedValue ? "star" : "star-outline"}
+                    size={size}
+                    color={star <= roundedValue ? "#fbbf24" : "#d1d5db"}
+                    style={{ marginRight: 2 }}
+                />
+            ))}
+        </View>
+    );
 };
 
 export default function AdminUsersScreen() {
@@ -334,11 +354,23 @@ export default function AdminUsersScreen() {
                                                 <Text className="w-28" numberOfLines={2}>
                                                     {item.is_verified ? "Yes" : "No"}
                                                 </Text>
-                                                <Text className="w-40" numberOfLines={2}>
-                                                    {Array.isArray(item.professions)
-                                                        ? item.professions.join(", ")
-                                                        : item.professions ?? "—"}
-                                                </Text>
+                                                <View className="w-40">
+                                                    <Text numberOfLines={2}>
+                                                        {Array.isArray(item.professions)
+                                                            ? item.professions.join(", ")
+                                                            : item.professions ?? "—"}
+                                                    </Text>
+                                                    {(item.role === "contractor" ||
+                                                        item.role === "service_provider" ||
+                                                        item.role === "service provider") && (
+                                                        <View className="flex-row items-center mt-1">
+                                                            {renderStars(Number(item.rating) || 0, 12)}
+                                                            <Text className="ml-1 text-xs text-gray-600">
+                                                                {Number(item.rating || 0).toFixed(1)}
+                                                            </Text>
+                                                        </View>
+                                                    )}
+                                                </View>
                                                 <Text className="w-36" numberOfLines={2}>
                                                     {item.phone || "—"}
                                                 </Text>
