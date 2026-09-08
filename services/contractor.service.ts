@@ -25,6 +25,18 @@ const getReviewSummary = (rows: any[] = []) => {
     return reviewMap;
 };
 
+const isProviderRole = (role?: string | null) => {
+    if (!role) return false;
+
+    const normalized = role.replace(/_/g, " ").trim().toLowerCase();
+
+    return (
+        normalized === "contractor" ||
+        normalized === "service provider" ||
+        normalized === "service_provider"
+    );
+};
+
 //Start for Customers
 
 export const getContractors = async () => {
@@ -38,10 +50,10 @@ export const getContractors = async () => {
                     professions,
                     avatar_url,
                     rating,
-                    reviews_count
+                    reviews_count,
+                    role
                 `,
             )
-            .in("role", ["contractor", "service_provider", "service provider"])
             .order("rating", {
                 ascending: false,
             }),
@@ -52,25 +64,27 @@ export const getContractors = async () => {
 
     const reviewSummary = getReviewSummary(reviewRows || []);
 
-    return (data || []).map((item: any) => {
-        const reviewStats = reviewSummary.get(item.id) || { count: 0, total: 0 };
-        const count = Number(item.reviews_count ?? reviewStats.count ?? 0);
-        const rating =
-            count > 0
-                ? Number(
-                      reviewStats.total / count,
-                  )
-                : Number(item.rating ?? 0);
+    return (data || [])
+        .filter((item: any) => isProviderRole(item?.role))
+        .map((item: any) => {
+            const reviewStats = reviewSummary.get(item.id) || { count: 0, total: 0 };
+            const count = Number(item.reviews_count ?? reviewStats.count ?? 0);
+            const rating =
+                count > 0
+                    ? Number(
+                          reviewStats.total / count,
+                      )
+                    : Number(item.rating ?? 0);
 
-        return {
-            ...item,
-            rating: Number(rating.toFixed(1)),
-            reviews_count: count,
-            profession: Array.isArray(item.professions)
-                ? item.professions[0]
-                : item.professions,
-        };
-    });
+            return {
+                ...item,
+                rating: Number(rating.toFixed(1)),
+                reviews_count: count,
+                profession: Array.isArray(item.professions)
+                    ? item.professions[0]
+                    : item.professions,
+            };
+        });
 };
 
 export const getContractorById = async (contractorId: string) => {

@@ -9,7 +9,7 @@ interface VerifyFacesResponse {
     similarityScore: number;
 }
 
-const VERIFICATION_REQUEST_TIMEOUT_MS = 20000;
+const VERIFICATION_REQUEST_TIMEOUT_MS = 90000;
 
 const getVerificationApiUrl = () => {
     const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -20,7 +20,23 @@ const getVerificationApiUrl = () => {
         );
     }
 
-    return apiUrl.replace(/\/+$/, "");
+    const normalized = apiUrl.replace(/\/+$/, "");
+
+    if (normalized.includes("localhost") || normalized.includes("127.0.0.1")) {
+        throw new Error(
+            "EXPO_PUBLIC_API_URL cannot use localhost on iPhone. Use your computer's LAN IP instead.",
+        );
+    }
+
+    if (normalized.endsWith("/api/verification/verify")) {
+        return normalized;
+    }
+
+    if (normalized.endsWith("/api/verification")) {
+        return `${normalized}/verify`;
+    }
+
+    return `${normalized}/api/verification/verify`;
 };
 
 export const verifyFaces = async ({
@@ -28,7 +44,7 @@ export const verifyFaces = async ({
     nationalId,
     userId,
 }: VerifyFacesInput): Promise<VerifyFacesResponse> => {
-    const endpoint = `${getVerificationApiUrl()}/verify`;
+    const endpoint = getVerificationApiUrl();
     const controller = new AbortController();
     const timeoutId = setTimeout(
         () => controller.abort(),
@@ -56,12 +72,27 @@ export const verifyFaces = async ({
     } catch (error: any) {
         if (error?.name === "AbortError") {
             throw new Error(
-                "Verification request timed out. Confirm EXPO_PUBLIC_API_URL is reachable from your phone.",
+                "Verification request timed out. The identity server is taking too long to respond. Check Railway health and try again.",
+            );
+        }
+
+        const networkMessage =
+            typeof error?.message === "string" ? error.message : "";
+
+        if (
+            /network request failed|load failed|fetch failed/i.test(
+                networkMessage,
+            )
+        ) {
+            throw new Error(
+                "Could not reach the identity server from the phone. Confirm the Expo app was restarted after updating EXPO_PUBLIC_API_URL and that Railway is online.",
             );
         }
 
         throw new Error(
-            "Could not reach verification server. Check EXPO_PUBLIC_API_URL and backend availability.",
+            `Verification request failed before the server responded${
+                networkMessage ? `: ${networkMessage}` : "."
+            }`,
         );
     } finally {
         clearTimeout(timeoutId);
@@ -78,7 +109,7 @@ export const verifyFaces = async ({
     if (!response.ok) {
         throw new Error(
             payload?.message ||
-                `Face verification request failed with status ${response.status}.`,
+                `Identity server returned ${response.status}.`,
         );
     }
 
@@ -87,7 +118,7 @@ export const verifyFaces = async ({
 
     if (typeof matched !== "boolean" || typeof similarityScore !== "number") {
         throw new Error(
-            "Verification service returned an invalid response payload.",
+            "Identity server returned an unexpected response. Confirm the Railway deployment is running the latest backend code.",
         );
     }
 

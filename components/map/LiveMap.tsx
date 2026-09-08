@@ -37,25 +37,27 @@ export default function LiveMap() {
 
         loadTrackingSetting();
 
-        const channel = supabase
-            .channel(`profile-tracking-${user.id}`)
-            .on(
-                "postgres_changes",
-                {
-                    event: "UPDATE",
-                    schema: "public",
-                    table: "profiles",
-                    filter: `id=eq.${user.id}`,
-                },
-                (payload) => {
-                    setTrackingEnabled(
-                        Boolean(payload.new?.location_tracking_enabled),
-                    );
-                },
-            )
-            .subscribe();
+        const channel = supabase.channel(`profile-tracking-${user.id}`);
+
+        channel.on(
+            "postgres_changes",
+            {
+                event: "UPDATE",
+                schema: "public",
+                table: "profiles",
+                filter: `id=eq.${user.id}`,
+            },
+            (payload) => {
+                setTrackingEnabled(
+                    Boolean(payload.new?.location_tracking_enabled),
+                );
+            },
+        );
+
+        channel.subscribe();
 
         return () => {
+            channel.unsubscribe();
             supabase.removeChannel(channel);
         };
     }, [user?.id]);

@@ -1,7 +1,50 @@
+import { useEffect, useState } from "react";
+
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
+import { supabase } from "@/lib/supabase";
+
 export default function AdminLayout() {
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        const loadPendingCount = async () => {
+            const { count } = await supabase
+                .from("user_verifications")
+                .select("*", {
+                    count: "exact",
+                    head: true,
+                })
+                .eq("verification_status", "pending");
+
+            setPendingCount(count ?? 0);
+        };
+
+        loadPendingCount();
+
+        const channel = supabase.channel("admin-verification-badge");
+
+        channel.on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "user_verifications",
+            },
+            () => {
+                loadPendingCount();
+            },
+        );
+
+        channel.subscribe();
+
+        return () => {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+        };
+    }, []);
+
     return (
         <Tabs
             screenOptions={{
@@ -51,6 +94,7 @@ export default function AdminLayout() {
                 name="verification"
                 options={{
                     title: "Verification",
+                    tabBarBadge: pendingCount > 0 ? pendingCount : undefined,
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons
                             name="shield-checkmark"
