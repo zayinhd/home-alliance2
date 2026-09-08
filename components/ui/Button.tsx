@@ -15,6 +15,19 @@ export default function Button({
     disabled,
     className,
 }: Props) {
+    const hasLightBackground =
+        (className || "").includes("bg-gray") ||
+        (className || "").includes("bg-white") ||
+        (className || "").includes("bg-yellow") ||
+        (className || "").includes("bg-amber") ||
+        (className || "").includes("bg-slate");
+
+    const textClassName = hasLightBackground
+        ? "text-gray-900"
+        : "text-white";
+
+    const spinnerColor = hasLightBackground ? "#111827" : "#ffffff";
+
     return (
         <TouchableOpacity
             onPress={onPress}
@@ -22,9 +35,9 @@ export default function Button({
             className={`bg-primary rounded-2xl py-4 items-center ${className ?? ""}`}
         >
             {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={spinnerColor} />
             ) : (
-                <Text className="text-white font-Jost-Bold text-base">
+                <Text className={`${textClassName} font-Jost-Bold text-base`}>
                     {title}
                 </Text>
             )}
