@@ -64,6 +64,7 @@ export default function SignInScreen() {
                 label="Password"
                 placeholder="Enter password"
                 secureTextEntry
+                enablePasswordToggle
                 value={password}
                 onChangeText={setPassword}
             />
