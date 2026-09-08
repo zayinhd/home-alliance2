@@ -13,7 +13,7 @@ interface CreateBookingPayload {
 export const getContractorStats = async (userId: string) => {
     const { data, error } = await supabase
         .from("profiles")
-        .select("username, professions, rating")
+        .select("username, professions, rating, jobs_completed, amount_earned")
         .eq("id", userId)
         .single();
 
@@ -25,8 +25,8 @@ export const getContractorStats = async (userId: string) => {
             ? data.professions[0]
             : (data?.professions ?? "Contractor"),
         rating: data?.rating ?? 0,
-        jobs_completed: 0,
-        amount_earned: 0,
+        jobs_completed: Number(data?.jobs_completed ?? 0),
+        amount_earned: Number(data?.amount_earned ?? 0),
     };
 };
 
@@ -163,6 +163,14 @@ export const updateJobStatus = async (
     jobId: string,
     status: "accepted" | "cancelled" | "completed" | "in_progress",
 ) => {
+    const { data: existingJob, error: existingJobError } = await supabase
+        .from("jobs")
+        .select("status, budget, service_provider_id")
+        .eq("id", jobId)
+        .single();
+
+    if (existingJobError) throw existingJobError;
+
     const { data, error } = await supabase
         .from("jobs")
         .update({ status })
@@ -245,6 +253,34 @@ export const updateJobStatus = async (
         }
 
         if (status === "completed") {
+            if (existingJob?.status !== "completed") {
+                const completionReward = Number(existingJob?.budget || 0);
+
+                const { data: providerStats, error: providerStatsError } =
+                    await supabase
+                        .from("profiles")
+                        .select("amount_earned, jobs_completed")
+                        .eq("id", jobMeta.service_provider_id)
+                        .single();
+
+                if (providerStatsError) throw providerStatsError;
+
+                const updatedAmount =
+                    Number(providerStats?.amount_earned || 0) + completionReward;
+                const updatedCompletedJobs =
+                    Number(providerStats?.jobs_completed || 0) + 1;
+
+                const { error: providerEarningsError } = await supabase
+                    .from("profiles")
+                    .update({
+                        amount_earned: updatedAmount,
+                        jobs_completed: updatedCompletedJobs,
+                    })
+                    .eq("id", jobMeta.service_provider_id);
+
+                if (providerEarningsError) throw providerEarningsError;
+            }
+
             await Promise.all([
                 createNotification({
                     userId: jobMeta.customer_id,
