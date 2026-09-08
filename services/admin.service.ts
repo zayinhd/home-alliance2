@@ -226,7 +226,7 @@ export const getVerificationRequests = async (status?: string) => {
 
     const requestsWithSelfies = await Promise.all(
         requests.map(async (item: any) => {
-            const userId = item?.profile?.id;
+            const userId = item?.user_id || item?.profile?.id;
 
             if (!userId) {
                 return {
@@ -238,7 +238,7 @@ export const getVerificationRequests = async (status?: string) => {
             const { data: files, error: listError } = await supabase.storage
                 .from(VERIFICATION_BUCKET)
                 .list(`${userId}/verifications`, {
-                    limit: 1,
+                    limit: 10,
                     offset: 0,
                     sortBy: {
                         column: "created_at",
@@ -255,13 +255,17 @@ export const getVerificationRequests = async (status?: string) => {
 
             const path = `${userId}/verifications/${files[0].name}`;
 
-            const { data: publicData } = supabase.storage
-                .from(VERIFICATION_BUCKET)
-                .getPublicUrl(path);
+            const { data: signedData, error: signedUrlError } =
+                await supabase.storage
+                    .from(VERIFICATION_BUCKET)
+                    .createSignedUrl(path, 60 * 60 * 24);
 
             return {
                 ...item,
-                providerSelfieUrl: publicData?.publicUrl ?? null,
+                providerSelfieUrl:
+                    !signedUrlError && signedData?.signedUrl
+                        ? signedData.signedUrl
+                        : null,
             };
         }),
     );
@@ -312,6 +316,28 @@ export const rejectVerification = async (
         .update({
             is_verified: false,
             verification_status: "failed",
+        })
+        .eq("id", userId);
+
+    if (profileError) throw profileError;
+};
+
+export const deleteVerificationRequest = async (
+    verificationId: string,
+    userId: string,
+) => {
+    const { error: verificationError } = await supabase
+        .from("user_verifications")
+        .delete()
+        .eq("id", verificationId);
+
+    if (verificationError) throw verificationError;
+
+    const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+            is_verified: false,
+            verification_status: null,
         })
         .eq("id", userId);
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -8,12 +8,14 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
     approveVerification,
+    deleteVerificationRequest,
     getVerificationRequests,
     rejectVerification,
 } from "@/services/admin.service";
+import { supabase } from "@/lib/supabase";
 
 const statusFilters = ["pending", "failed", "verified", "all"];
 
@@ -39,10 +41,6 @@ export default function AdminVerificationScreen() {
         }
     }, [params.status]);
 
-    useEffect(() => {
-        loadRequests();
-    }, [status]);
-
     const loadRequests = async () => {
         try {
             setLoading(true);
@@ -58,6 +56,51 @@ export default function AdminVerificationScreen() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        loadRequests();
+    }, [status]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadRequests();
+        }, [status]),
+    );
+
+    useEffect(() => {
+        const channel = supabase.channel("admin-verification-requests");
+
+        channel.on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "user_verifications",
+            },
+            () => {
+                loadRequests();
+            },
+        );
+
+        channel.on(
+            "postgres_changes",
+            {
+                event: "UPDATE",
+                schema: "public",
+                table: "profiles",
+            },
+            () => {
+                loadRequests();
+            },
+        );
+
+        channel.subscribe();
+
+        return () => {
+            channel.unsubscribe();
+            supabase.removeChannel(channel);
+        };
+    }, [status]);
 
     const handleApprove = (item: any) => {
         Alert.alert(
@@ -104,6 +147,37 @@ export default function AdminVerificationScreen() {
                             Alert.alert(
                                 "Rejection failed",
                                 error?.message || "Could not reject request.",
+                            );
+                        } finally {
+                            setProcessingId(null);
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleDelete = (item: any) => {
+        Alert.alert(
+            "Delete Verification Request",
+            `Delete ${item?.profile?.username || "this provider"}'s verification request?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setProcessingId(item.id);
+                            await deleteVerificationRequest(
+                                item.id,
+                                item.profile.id,
+                            );
+                            await loadRequests();
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Delete failed",
+                                error?.message || "Could not delete request.",
                             );
                         } finally {
                             setProcessingId(null);
@@ -171,6 +245,13 @@ export default function AdminVerificationScreen() {
                         const statusChipClass = getStatusChipClass(
                             item.verification_status,
                         );
+                        const similarityValue = Number(
+                            item?.similarity_score ?? 0,
+                        );
+                        const similarityText =
+                            Number.isFinite(similarityValue) && similarityValue > 0
+                                ? `${similarityValue.toFixed(2)}%`
+                                : "Not available";
 
                         return (
                             <View
@@ -204,11 +285,7 @@ export default function AdminVerificationScreen() {
                                     {item?.registry?.national_id_number || "-"}
                                 </Text>
                                 <Text className="text-gray-700 mb-3">
-                                    Similarity:{" "}
-                                    {Number(
-                                        item?.similarity_score || 0,
-                                    ).toFixed(2)}
-                                    %
+                                    Similarity: {similarityText}
                                 </Text>
 
                                 <Text className="font-Jost-Bold mb-2">
@@ -261,7 +338,7 @@ export default function AdminVerificationScreen() {
                                     </View>
                                 </ScrollView>
 
-                                <View className="flex-row mt-4">
+                                <View className="flex-row mt-4 flex-wrap">
                                     <TouchableOpacity
                                         onPress={() => handleApprove(item)}
                                         disabled={
@@ -269,7 +346,7 @@ export default function AdminVerificationScreen() {
                                             item.verification_status ===
                                                 "verified"
                                         }
-                                        className="bg-emerald-600 px-4 py-2 rounded-full mr-2"
+                                        className="bg-emerald-600 px-4 py-2 rounded-full mr-2 mb-2"
                                     >
                                         <Text className="text-white font-Jost-Medium">
                                             Approve
@@ -283,10 +360,20 @@ export default function AdminVerificationScreen() {
                                             item.verification_status ===
                                                 "failed"
                                         }
-                                        className="bg-red-600 px-4 py-2 rounded-full"
+                                        className="bg-red-600 px-4 py-2 rounded-full mr-2 mb-2"
                                     >
                                         <Text className="text-white font-Jost-Medium">
                                             Reject
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        onPress={() => handleDelete(item)}
+                                        disabled={processingId === item.id}
+                                        className="bg-gray-700 px-4 py-2 rounded-full mb-2"
+                                    >
+                                        <Text className="text-white font-Jost-Medium">
+                                            Delete
                                         </Text>
                                     </TouchableOpacity>
                                 </View>

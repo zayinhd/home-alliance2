@@ -269,7 +269,7 @@ export default function EditProfileScreen() {
 
             <View className="mt-6">
                 <Text className="text-lg font-Jost-Bold mb-4">
-                    Professions (Maximum 3)
+                    Professions (Maximum 1)
                 </Text>
 
                 <View className="flex-row flex-wrap">
@@ -290,9 +290,9 @@ export default function EditProfileScreen() {
                                         return;
                                     }
 
-                                    if (professions.length >= 3) {
+                                    if (professions.length >= 1) {
                                         Alert.alert(
-                                            "Maximum 3 professions allowed",
+                                            "Maximum 1 profession allowed",
                                         );
                                         return;
                                     }

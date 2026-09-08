@@ -20,7 +20,7 @@ import Button from "@/components/ui/Button";
 
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
-import { verifyFaces } from "../../../services/verification.service";
+import { verifyFaces } from "@/services/verification.service";
 
 const VERIFICATION_BUCKET = "national-registry";
 
@@ -31,14 +31,6 @@ const maskNationalId = (value: string) => {
     if (value.length <= 4) return value;
     return `${"*".repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
 };
-
-const formatSupabaseError = (error: any) => ({
-    message: error?.message,
-    code: error?.code,
-    details: error?.details,
-    hint: error?.hint,
-    status: error?.status,
-});
 
 export default function VerificationScreen() {
     const { user } = useAuth();
@@ -54,28 +46,13 @@ export default function VerificationScreen() {
     const loadExistingVerification = async () => {
         if (!user?.id) return;
 
-        console.log("[verification] loadExistingVerification:start", {
-            userId: user.id,
-        });
-
         const { data, error } = await supabase
             .from("user_verifications")
             .select("verification_status")
             .eq("user_id", user.id)
             .maybeSingle();
 
-        if (error) {
-            console.error(
-                "[verification] loadExistingVerification:error",
-                formatSupabaseError(error),
-            );
-        } else {
-            console.log("[verification] loadExistingVerification:success", {
-                status: data?.verification_status ?? "not_submitted",
-            });
-        }
-
-        if (data?.verification_status) {
+        if (!error && data?.verification_status) {
             setStatus(data.verification_status);
         }
     };
@@ -100,7 +77,7 @@ export default function VerificationScreen() {
 
             const result = await ImagePicker.launchCameraAsync({
                 allowsEditing: true,
-                quality: 0.8,
+                quality: 0.35,
             });
 
             if (!result.canceled) {
@@ -114,12 +91,6 @@ export default function VerificationScreen() {
     const handleVerification = async () => {
         try {
             const normalizedNationalId = normalizeNationalId(nationalId);
-
-            console.log("[verification] handleVerification:start", {
-                userId: user?.id,
-                hasImage: Boolean(imageUri),
-                nationalId: maskNationalId(normalizedNationalId),
-            });
 
             if (!normalizedNationalId) {
                 return Alert.alert(
@@ -140,47 +111,20 @@ export default function VerificationScreen() {
             }
 
             setLoading(true);
+            setStatus("pending");
 
             // Refresh session to ensure JWT is valid
             const { error: refreshError } =
                 await supabase.auth.refreshSession();
             if (refreshError) {
-                console.error(
-                    "[verification] refreshSession:error",
-                    formatSupabaseError(refreshError),
-                );
                 throw new Error("Session expired. Please log in again.");
             }
 
-            console.log("[verification] refreshSession:success");
-
-            const { data: registry, error: registryLookupError } =
-                await supabase
-                    .from("national_registry")
-                    .select("id, national_id_number, photo_url")
-                    .eq("national_id_number", normalizedNationalId)
-                    .maybeSingle();
-
-            if (registryLookupError) {
-                console.error(
-                    "[verification] registryLookup:error",
-                    formatSupabaseError(registryLookupError),
-                );
-                throw new Error(registryLookupError.message);
-            }
-
-            console.log("[verification] registryLookup:success", {
-                found: Boolean(registry),
-                registryId: registry?.id,
+            const { matched, similarityScore } = await verifyFaces({
+                selfieUri: imageUri,
+                nationalId: normalizedNationalId,
+                userId: user.id,
             });
-
-            if (!registry) {
-                throw new Error("National ID not found in registry.");
-            }
-
-            if (!registry.photo_url) {
-                throw new Error("Registry photo is missing for this ID.");
-            }
 
             const fileResponse = await fetch(imageUri);
             const selfieBlob = await fileResponse.blob();
@@ -194,77 +138,56 @@ export default function VerificationScreen() {
                 });
 
             if (uploadError) {
-                console.error(
-                    "[verification] selfieUpload:error",
-                    formatSupabaseError(uploadError),
-                );
                 throw new Error(uploadError.message);
             }
 
-            console.log("[verification] selfieUpload:success", {
-                bucket: VERIFICATION_BUCKET,
-                filePath,
-            });
+            const { data: registryCitizen, error: registryLookupError } =
+                await supabase
+                    .from("national_registry")
+                    .select("id")
+                    .eq("national_id_number", normalizedNationalId)
+                    .single();
 
-            const { data: publicData } = supabase.storage
-                .from(VERIFICATION_BUCKET)
-                .getPublicUrl(filePath);
-
-            const selfieUrl = publicData.publicUrl;
-
-            console.log("[verification] selfiePublicUrl:created", {
-                url: selfieUrl,
-            });
-
-            console.log("[verification] faceVerification:start", {
-                selfieUrl,
-                registryPhotoUrl: registry.photo_url,
-                nationalId: maskNationalId(normalizedNationalId),
-            });
-
-            const { matched: isMatch, similarityScore } = await verifyFaces({
-                selfieUri: imageUri,
-                nationalId: normalizedNationalId,
-                userId: user.id,
-            });
-
-            const verificationStatus = isMatch ? "verified" : "failed";
-
-            console.log("[verification] faceVerification:success", {
-                isMatch,
-                similarityScore,
-            });
-
-            console.log("[verification] persistence:backend-owned", {
-                userId: user.id,
-                verificationStatus,
-            });
-
-            setStatus(verificationStatus);
-
-            loadExistingVerification().catch((loadError) => {
-                console.error(
-                    "[verification] loadExistingVerification:post-check:error",
-                    loadError,
-                );
-            });
-
-            if (isMatch) {
-                Alert.alert(
-                    "Verification Successful",
-                    "Your identity has been verified from the registry.",
-                );
-            } else {
-                Alert.alert(
-                    "Verification Failed",
-                    "Face does not match the registry photo.",
-                );
+            if (registryLookupError) {
+                throw new Error(registryLookupError.message);
             }
+
+            const { error: verificationInsertError } = await supabase
+                .from("user_verifications")
+                .upsert(
+                    {
+                        user_id: user.id,
+                        national_registry_id: registryCitizen.id,
+                        verification_status: "pending",
+                        similarity_score: similarityScore,
+                        verified_at: null,
+                    },
+                    { onConflict: "user_id" },
+                );
+
+            if (verificationInsertError) {
+                throw new Error(verificationInsertError.message);
+            }
+
+            const { error: profileUpdateError } = await supabase
+                .from("profiles")
+                .update({
+                    verification_status: "pending",
+                    is_verified: false,
+                })
+                .eq("id", user.id);
+
+            if (profileUpdateError) {
+                throw new Error(profileUpdateError.message);
+            }
+
+            await loadExistingVerification();
+
+            Alert.alert(
+                "Verification Submitted",
+                `Pre-check score: ${similarityScore.toFixed(2)}%. Submitted for admin review.`,
+            );
         } catch (error: any) {
-            console.error("[verification] handleVerification:failed", {
-                message: error?.message,
-                stack: error?.stack,
-            });
             Alert.alert("Verification Failed", error.message);
         } finally {
             setLoading(false);

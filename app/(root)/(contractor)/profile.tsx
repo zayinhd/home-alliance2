@@ -229,7 +229,7 @@ export default function ContractorProfileScreen() {
 
                     <View className="items-center flex-1">
                         <Text className="text-white text-2xl font-Jost-Bold">
-                            ${profile?.amount_earned || 0}
+                            Ghc{profile?.amount_earned || 0}
                         </Text>
 
                         <Text className="text-white/80 mt-1">Earned</Text>
