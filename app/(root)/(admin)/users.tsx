@@ -3,7 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
-    Modal,
+    RefreshControl,
     ScrollView,
     Switch,
     Text,
@@ -14,12 +14,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import Button from "@/components/ui/Button";
+import PullableModal from "@/components/ui/PullableModal";
 import { exportReportAsPdf } from "@/lib/report-export";
 import {
     createAdminUser,
     deleteUser,
     getAdminUsers,
     suspendUser,
+    updateAdminUser,
 } from "@/services/admin.service";
 
 const roleFilters = ["all", "customer", "service provider", "admin"];
@@ -36,6 +38,14 @@ const initialForm = {
     username: "",
     email: "",
     password: "",
+    role: "customer",
+    profession: "",
+    phone: "",
+    isVerified: false,
+};
+
+const initialEditForm = {
+    username: "",
     role: "customer",
     profession: "",
     phone: "",
@@ -70,11 +80,16 @@ export default function AdminUsersScreen() {
     const [search, setSearch] = useState("");
     const [role, setRole] = useState("all");
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [creating, setCreating] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [form, setForm] = useState(initialForm);
     const [processingUserId, setProcessingUserId] = useState<string | null>(null);
     const [exporting, setExporting] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [editForm, setEditForm] = useState(initialEditForm);
 
     useEffect(() => {
         loadUsers();
@@ -184,7 +199,7 @@ export default function AdminUsersScreen() {
     const handleDeleteUser = (item: any) => {
         Alert.alert(
             "Delete User",
-            `This will permanently remove ${item.username || "this user"}. Continue?`,
+            `This will permanently remove ${item.username || "this user"} and all related data (jobs, reviews, posts, notifications, verification, and location records). Continue?`,
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -207,6 +222,15 @@ export default function AdminUsersScreen() {
                 },
             ],
         );
+    };
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadUsers();
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     const handleExportReport = async () => {
@@ -255,12 +279,69 @@ export default function AdminUsersScreen() {
         }
     };
 
+    const openEditModal = (item: any) => {
+        setEditingUserId(item.id);
+        setEditForm({
+            username: item.username || "",
+            role: item.role || "customer",
+            profession: Array.isArray(item.professions)
+                ? item.professions.join(", ")
+                : (item.professions ?? ""),
+            phone: item.phone || "",
+            isVerified: Boolean(item.is_verified),
+        });
+        setShowEditModal(true);
+    };
+
+    const handleUpdateUser = async () => {
+        if (!editingUserId) return;
+
+        if (!editForm.username.trim()) {
+            Alert.alert("Missing details", "Username is required.");
+            return;
+        }
+
+        try {
+            setSavingEdit(true);
+            const professions = editForm.profession
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean);
+
+            await updateAdminUser({
+                userId: editingUserId,
+                username: editForm.username.trim(),
+                role: editForm.role,
+                phone: editForm.phone.trim() || undefined,
+                professions,
+                isVerified: editForm.isVerified,
+            });
+
+            Alert.alert("Success", "User updated successfully.");
+            setShowEditModal(false);
+            setEditingUserId(null);
+            setEditForm(initialEditForm);
+            await loadUsers();
+        } catch (error: any) {
+            Alert.alert("Error", error?.message || "Unable to update user.");
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
     return (
         <View className="flex-1 bg-white">
             <ScrollView
                 className="flex-1 px-4 pt-14"
                 contentContainerStyle={{ paddingBottom: 28 }}
                 keyboardShouldPersistTaps="handled"
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#2a6ff2"
+                    />
+                }
             >
                 <View className="flex-row items-center justify-between mb-4">
                     <Text className="text-3xl font-Jost-Bold">Manage Users</Text>
@@ -274,7 +355,7 @@ export default function AdminUsersScreen() {
 
                 <TextInput
                     placeholder="Search users"
-                    placeholderTextColor="#4b5563"
+                    placeholderTextColor="#6b7280"
                     value={search}
                     onChangeText={setSearch}
                     className="border border-gray-200 rounded-2xl px-4 py-3 mb-3"
@@ -330,7 +411,7 @@ export default function AdminUsersScreen() {
                                         <Text className="w-40 font-Jost-Bold">Profession</Text>
                                         <Text className="w-36 font-Jost-Bold">Phone</Text>
                                         <Text className="w-28 font-Jost-Bold">Status</Text>
-                                        <Text className="w-48 font-Jost-Bold">Actions</Text>
+                                        <Text className="w-64 font-Jost-Bold">Actions</Text>
                                     </View>
 
                                     <FlatList
@@ -378,7 +459,17 @@ export default function AdminUsersScreen() {
                                                     {item.is_suspended ? "Suspended" : "Active"}
                                                 </Text>
 
-                                                <View className="w-48 flex-row items-center gap-2">
+                                                <View className="w-64 flex-row items-center gap-2">
+                                                    <TouchableOpacity
+                                                        disabled={processingUserId === item.id}
+                                                        onPress={() => openEditModal(item)}
+                                                        className="px-3 py-1 rounded-full bg-blue-100"
+                                                    >
+                                                        <Text className="text-blue-700 font-Jost-Medium">
+                                                            Edit
+                                                        </Text>
+                                                    </TouchableOpacity>
+
                                                     <TouchableOpacity
                                                         disabled={processingUserId === item.id}
                                                         onPress={() => handleToggleSuspend(item)}
@@ -438,20 +529,21 @@ export default function AdminUsersScreen() {
                 )}
             </ScrollView>
 
-            <Modal
+            <PullableModal
                 visible={showCreateModal}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setShowCreateModal(false)}
+                onClose={() => setShowCreateModal(false)}
             >
-                <View className="flex-1 justify-end bg-black/40">
-                    <View className="bg-white rounded-t-3xl p-5">
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
                         <Text className="text-xl font-Jost-Bold mb-4">
                             Add New User
                         </Text>
 
                         <TextInput
                             placeholder="Full name"
+                            placeholderTextColor="#6b7280"
                             value={form.username}
                             onChangeText={(value) =>
                                 setForm((prev) => ({
@@ -463,6 +555,7 @@ export default function AdminUsersScreen() {
                         />
                         <TextInput
                             placeholder="Email"
+                            placeholderTextColor="#6b7280"
                             value={form.email}
                             keyboardType="email-address"
                             autoCapitalize="none"
@@ -473,6 +566,7 @@ export default function AdminUsersScreen() {
                         />
                         <TextInput
                             placeholder="Temporary password"
+                            placeholderTextColor="#6b7280"
                             value={form.password}
                             secureTextEntry
                             onChangeText={(value) =>
@@ -485,6 +579,7 @@ export default function AdminUsersScreen() {
                         />
                         <TextInput
                             placeholder="Profession (optional)"
+                            placeholderTextColor="#6b7280"
                             value={form.profession}
                             onChangeText={(value) =>
                                 setForm((prev) => ({
@@ -496,6 +591,7 @@ export default function AdminUsersScreen() {
                         />
                         <TextInput
                             placeholder="Phone (optional)"
+                            placeholderTextColor="#6b7280"
                             value={form.phone}
                             onChangeText={(value) =>
                                 setForm((prev) => ({ ...prev, phone: value }))
@@ -568,9 +664,128 @@ export default function AdminUsersScreen() {
                                 </Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </View>
-            </Modal>
+                </ScrollView>
+            </PullableModal>
+
+            <PullableModal
+                visible={showEditModal}
+                onClose={() => setShowEditModal(false)}
+            >
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                        <Text className="text-xl font-Jost-Bold mb-4">
+                            Edit User
+                        </Text>
+
+                        <TextInput
+                            placeholder="Username"
+                            placeholderTextColor="#6b7280"
+                            value={editForm.username}
+                            onChangeText={(value) =>
+                                setEditForm((prev) => ({
+                                    ...prev,
+                                    username: value,
+                                }))
+                            }
+                            className="border border-gray-200 rounded-2xl px-4 py-3 mb-3"
+                        />
+
+                        <TextInput
+                            placeholder="Profession(s), comma separated"
+                            placeholderTextColor="#6b7280"
+                            value={editForm.profession}
+                            onChangeText={(value) =>
+                                setEditForm((prev) => ({
+                                    ...prev,
+                                    profession: value,
+                                }))
+                            }
+                            className="border border-gray-200 rounded-2xl px-4 py-3 mb-3"
+                        />
+
+                        <TextInput
+                            placeholder="Phone"
+                            placeholderTextColor="#6b7280"
+                            value={editForm.phone}
+                            onChangeText={(value) =>
+                                setEditForm((prev) => ({
+                                    ...prev,
+                                    phone: value,
+                                }))
+                            }
+                            className="border border-gray-200 rounded-2xl px-4 py-3 mb-3"
+                        />
+
+                        <View className="flex-row flex-wrap mb-3">
+                            {roleOptions.map((item) => (
+                                <TouchableOpacity
+                                    key={item}
+                                    onPress={() =>
+                                        setEditForm((prev) => ({
+                                            ...prev,
+                                            role: item,
+                                        }))
+                                    }
+                                    className={`px-3 py-2 rounded-full mr-2 mb-2 ${
+                                        editForm.role === item
+                                            ? "bg-primary"
+                                            : "bg-gray-100"
+                                    }`}
+                                >
+                                    <Text
+                                        className={`${
+                                            editForm.role === item
+                                                ? "text-white"
+                                                : "text-gray-700"
+                                        } font-Jost-Medium`}
+                                    >
+                                        {item === "service provider"
+                                            ? "Service Provider"
+                                            : item.charAt(0).toUpperCase() + item.slice(1)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View className="flex-row items-center justify-between mb-5">
+                            <Text className="text-gray-700 font-Jost-Medium">
+                                Mark as verified
+                            </Text>
+                            <Switch
+                                value={editForm.isVerified}
+                                onValueChange={(value) =>
+                                    setEditForm((prev) => ({
+                                        ...prev,
+                                        isVerified: value,
+                                    }))
+                                }
+                            />
+                        </View>
+
+                        <View className="flex-row">
+                            <TouchableOpacity
+                                onPress={() => setShowEditModal(false)}
+                                className="flex-1 border border-gray-300 rounded-2xl py-3 mr-2 items-center"
+                            >
+                                <Text className="text-gray-700 font-Jost-Bold">
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={handleUpdateUser}
+                                disabled={savingEdit}
+                                className="flex-1 bg-primary rounded-2xl py-3 items-center"
+                            >
+                                <Text className="text-white font-Jost-Bold">
+                                    {savingEdit ? "Saving..." : "Save"}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                </ScrollView>
+            </PullableModal>
         </View>
     );
 }

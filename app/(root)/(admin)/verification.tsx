@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    RefreshControl,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -31,6 +32,7 @@ export default function AdminVerificationScreen() {
     const [requests, setRequests] = useState<any[]>([]);
     const [status, setStatus] = useState("pending");
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -114,12 +116,28 @@ export default function AdminVerificationScreen() {
         );
     };
 
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadRequests();
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <View className="flex-1 bg-white">
             <ScrollView
                 className="flex-1 px-4 pt-14"
                 contentContainerStyle={{ paddingBottom: 24 }}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#2a6ff2"
+                    />
+                }
             >
                 <Text className="text-3xl font-Jost-Bold mb-3">
                     Verification Requests
