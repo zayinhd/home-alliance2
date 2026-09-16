@@ -5,8 +5,10 @@ import {
     View,
     Text,
     FlatList,
+    RefreshControl,
     TouchableOpacity,
 } from "react-native";
+import { useState } from "react";
 import { router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 import { getCustomerBookings } from "@/services/job.service";
@@ -16,6 +18,7 @@ import { markNotificationAsRead } from "@/services/notification.service";
 export default function NotificationsScreen() {
     const { user } = useAuth();
     const { notifications, loading, refreshNotifications } = useNotifications();
+    const [refreshing, setRefreshing] = useState(false);
 
     const getPhoneFromMessage = (message: string) => {
         const match = message.match(/(\+?\d[\d\s-]{6,})/);
@@ -66,6 +69,15 @@ export default function NotificationsScreen() {
         refreshNotifications();
     };
 
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await refreshNotifications();
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     if (loading) {
         return (
             <View className="flex-1 bg-white items-center justify-center">
@@ -81,6 +93,13 @@ export default function NotificationsScreen() {
             <FlatList
                 data={notifications}
                 keyExtractor={(item) => item.id}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#2a6ff2"
+                    />
+                }
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         onPress={() => handleOpenNotification(item)}
