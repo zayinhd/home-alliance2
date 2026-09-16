@@ -4,13 +4,16 @@ import {
     View,
     Text,
     FlatList,
+    RefreshControl,
     TouchableOpacity,
 } from "react-native";
+import { useState } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { markNotificationAsRead } from "@/services/notification.service";
 
 export default function ContractorNotificationsScreen() {
     const { notifications, loading, refreshNotifications } = useNotifications();
+    const [refreshing, setRefreshing] = useState(false);
 
     const getPhoneFromMessage = (message: string) => {
         const match = message.match(/(\+?\d[\d\s-]{6,})/);
@@ -30,6 +33,15 @@ export default function ContractorNotificationsScreen() {
         refreshNotifications();
     };
 
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await refreshNotifications();
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     if (loading) {
         return (
             <View className="flex-1 bg-white items-center justify-center">
@@ -45,6 +57,13 @@ export default function ContractorNotificationsScreen() {
             <FlatList
                 data={notifications}
                 keyExtractor={(item) => item.id}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#2a6ff2"
+                    />
+                }
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         onPress={() => handleOpenNotification(item)}
