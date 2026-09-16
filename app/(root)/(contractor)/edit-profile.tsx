@@ -4,6 +4,7 @@ import {
     View,
     Text,
     ScrollView,
+    RefreshControl,
     TouchableOpacity,
     Alert,
     ActivityIndicator,
@@ -41,6 +42,8 @@ export default function EditProfileScreen() {
 
     const [saving, setSaving] = useState(false);
 
+    const [refreshing, setRefreshing] = useState(false);
+
     const [username, setUsername] = useState("");
 
     const [fullName, setFullName] = useState("");
@@ -62,11 +65,16 @@ export default function EditProfileScreen() {
     }, [user]);
 
     const fetchProfile = async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const { data, error } = await supabase
                 .from("profiles")
                 .select("*")
-                .eq("id", user?.id)
+                .eq("id", user.id)
                 .single();
 
             if (error) throw error;
@@ -83,13 +91,30 @@ export default function EditProfileScreen() {
 
             setExperienceYears(String(data?.experience_years || ""));
 
-            setProfessions(data?.professions || []);
+            if (Array.isArray(data?.professions)) {
+                setProfessions(
+                    data.professions[0] ? [data.professions[0]] : [],
+                );
+            } else if (data?.professions) {
+                setProfessions([data.professions]);
+            } else {
+                setProfessions([]);
+            }
 
             setUseLiveLocation(Boolean(data?.location_tracking_enabled));
         } catch (error: any) {
             Alert.alert("Error", error.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchProfile();
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -199,7 +224,7 @@ export default function EditProfileScreen() {
                     full_name: fullName,
                     phone,
                     address: address.trim(),
-                    professions,
+                    professions: professions[0] ? [professions[0]] : null,
                     experience_years: Number(experienceYears) || 0,
                     location_tracking_enabled: useLiveLocation,
                 })
@@ -226,7 +251,16 @@ export default function EditProfileScreen() {
     }
 
     return (
-        <ScrollView className="flex-1 bg-white px-6 pt-16">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-16"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             <Text className="text-3xl font-Jost-Bold mb-8">Edit Profile</Text>
 
             <Input
@@ -269,7 +303,7 @@ export default function EditProfileScreen() {
 
             <View className="mt-6">
                 <Text className="text-lg font-Jost-Bold mb-4">
-                    Professions (Maximum 3)
+                    Profession (Select one)
                 </Text>
 
                 <View className="flex-row flex-wrap">
@@ -290,17 +324,7 @@ export default function EditProfileScreen() {
                                         return;
                                     }
 
-                                    if (professions.length >= 3) {
-                                        Alert.alert(
-                                            "Maximum 3 professions allowed",
-                                        );
-                                        return;
-                                    }
-
-                                    setProfessions([
-                                        ...professions,
-                                        profession,
-                                    ]);
+                                    setProfessions([profession]);
                                 }}
                                 className={`px-4 py-2 rounded-full mr-2 mb-2 ${
                                     selected ? "bg-primary" : "bg-gray-200"

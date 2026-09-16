@@ -5,11 +5,12 @@ import {
     Alert,
     ScrollView,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 
 import { useEffect, useState } from "react";
 
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 
 import { Ionicons } from "@expo/vector-icons";
 
@@ -22,6 +23,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { signOut } from "@/services/auth.service";
 
 import { supabase } from "@/lib/supabase";
+import { useCallback } from "react";
 
 const renderStars = (value: number, size = 18) => {
     const safeValue = Number(value) || 0;
@@ -48,6 +50,7 @@ export default function ContractorProfileScreen() {
     const [profile, setProfile] = useState<any>(null);
 
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -55,12 +58,23 @@ export default function ContractorProfileScreen() {
         }
     }, [user]);
 
+    useFocusEffect(
+        useCallback(() => {
+            fetchProfile();
+        }, [user?.id]),
+    );
+
     const fetchProfile = async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
+
         try {
             const { data, error } = await supabase
                 .from("profiles")
                 .select("*")
-                .eq("id", user?.id)
+                .eq("id", user.id)
                 .single();
 
             if (error) {
@@ -72,6 +86,15 @@ export default function ContractorProfileScreen() {
             Alert.alert("Error", error.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchProfile();
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -136,7 +159,16 @@ export default function ContractorProfileScreen() {
     const verificationIconColor = isVerified ? "#047857" : "#1d4ed8";
 
     return (
-        <ScrollView className="flex-1 bg-white px-6 pt-20">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-20"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             {/* PROFILE */}
 
             <View className="items-center">
@@ -229,7 +261,7 @@ export default function ContractorProfileScreen() {
 
                     <View className="items-center flex-1">
                         <Text className="text-white text-2xl font-Jost-Bold">
-                            ${profile?.amount_earned || 0}
+                            Ghc {profile?.amount_earned || 0}
                         </Text>
 
                         <Text className="text-white/80 mt-1">Earned</Text>
