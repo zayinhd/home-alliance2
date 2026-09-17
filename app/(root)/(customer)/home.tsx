@@ -5,6 +5,7 @@ import {
     FlatList,
     TouchableOpacity,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -37,6 +38,7 @@ const renderStars = (value: number, size = 16) => {
 
 export default function CustomerHomeScreen() {
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [providers, setProviders] = useState<any[]>([]);
 
     const loadProviders = useCallback(async () => {
@@ -58,6 +60,15 @@ export default function CustomerHomeScreen() {
             loadProviders();
         }, [loadProviders]),
     );
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadProviders();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -111,6 +122,13 @@ export default function CustomerHomeScreen() {
                         data={providers.slice(0, 8)}
                         keyExtractor={(item) => item.id}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={handleRefresh}
+                                tintColor="#2a6ff2"
+                            />
+                        }
                         renderItem={({ item }) => (
                             <TouchableOpacity
                                 onPress={() =>

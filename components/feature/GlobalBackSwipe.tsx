@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useRef } from "react";
 
 import { StyleSheet, View } from "react-native";
 
@@ -14,9 +14,26 @@ type GlobalBackSwipeProps = {
 
 export default function GlobalBackSwipe({ children }: GlobalBackSwipeProps) {
     const router = useRouter();
+    const isNavigatingRef = useRef(false);
+    const lastSwipeTsRef = useRef(0);
 
     const handleBack = () => {
+        const now = Date.now();
+
+        if (isNavigatingRef.current || now - lastSwipeTsRef.current < 450) {
+            return;
+        }
+
+        if (!router.canGoBack()) return;
+
+        isNavigatingRef.current = true;
+        lastSwipeTsRef.current = now;
+
         router.back();
+
+        setTimeout(() => {
+            isNavigatingRef.current = false;
+        }, 450);
     };
 
     const swipeGesture = Gesture.Pan()

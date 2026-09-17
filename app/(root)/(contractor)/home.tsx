@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
     View,
@@ -7,6 +7,7 @@ import {
     FlatList,
     Alert,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 
 import { router } from "expo-router";
@@ -33,6 +34,7 @@ export default function ContractorHomeScreen() {
     const [jobs, setJobs] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -67,6 +69,26 @@ export default function ContractorHomeScreen() {
             fetchData();
         } catch (error: any) {
             Alert.alert("Error", error.message);
+        }
+    };
+
+    const trackableCustomerIds = useMemo(
+        () =>
+            jobs
+                .filter((job: any) =>
+                    ["accepted", "in_progress"].includes(job.status),
+                )
+                .map((job: any) => job.customer_id)
+                .filter(Boolean),
+        [jobs],
+    );
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchData();
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -134,7 +156,7 @@ export default function ContractorHomeScreen() {
 
                             <View className="items-center">
                                 <Text className="text-white text-2xl font-Jost-Bold">
-                                    ${stats?.amount_earned || 0}
+                                    Ghc {stats?.amount_earned || 0}
                                 </Text>
 
                                 <Text className="text-white/80 text-sm mt-1">
@@ -148,7 +170,7 @@ export default function ContractorHomeScreen() {
                 {/* MAP */}
 
                 <View className="h-[42%] px-6 pb-3">
-                    <LiveMap />
+                    <LiveMap trackedUserIds={trackableCustomerIds} />
                 </View>
 
                 {/* JOBS SECTION */}
@@ -174,6 +196,13 @@ export default function ContractorHomeScreen() {
                         data={jobs}
                         keyExtractor={(item) => item.id}
                         showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl
+                                refreshing={refreshing}
+                                onRefresh={handleRefresh}
+                                tintColor="#2a6ff2"
+                            />
+                        }
                         renderItem={({ item }) => (
                             <TouchableOpacity className="bg-gray-100 rounded-2xl p-5 mb-4">
                                 <View className="flex-row items-center justify-between">
@@ -191,7 +220,7 @@ export default function ContractorHomeScreen() {
                                         </Text>
 
                                         <Text className="text-primary font-Jost-Bold mt-2">
-                                            ${item.budget}
+                                            Ghc {item.budget}
                                         </Text>
 
                                         <View className="mt-3 self-start px-3 py-1 rounded-full bg-primary">

@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     ScrollView,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 
 import { router, useFocusEffect } from "expo-router";
@@ -48,6 +49,7 @@ export default function DiscoverScreen() {
     const [search, setSearch] = useState("");
 
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const [contractors, setContractors] = useState<any[]>([]);
 
@@ -75,6 +77,15 @@ export default function DiscoverScreen() {
             fetchContractors();
         }, [fetchContractors]),
     );
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await fetchContractors();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const filteredContractors = contractors.filter((contractor) => {
         const matchesSearch =
@@ -108,7 +119,7 @@ export default function DiscoverScreen() {
 
                 <TextInput
                     placeholder="Search service providers..."
-                    placeholderTextColor="#999"
+                    placeholderTextColor="#6b7280"
                     value={search}
                     onChangeText={setSearch}
                     className="flex-1 ml-3 text-base"
@@ -168,6 +179,13 @@ export default function DiscoverScreen() {
                 data={filteredContractors}
                 keyExtractor={(item) => item.id}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor="#2a6ff2"
+                    />
+                }
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         onPress={() =>

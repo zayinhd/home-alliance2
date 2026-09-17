@@ -33,10 +33,22 @@ export const getNearbyUsers = async () => {
 export const getLocationsByUserIds = async (userIds: string[]) => {
     if (!userIds.length) return [];
 
+    const { data: eligibleProfiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("id", userIds)
+        .eq("location_tracking_enabled", true);
+
+    if (profileError) throw profileError;
+
+    const eligibleUserIds = (eligibleProfiles || []).map((profile: any) => profile.id);
+
+    if (!eligibleUserIds.length) return [];
+
     const { data, error } = await supabase
         .from("locations")
         .select("*")
-        .in("user_id", userIds);
+        .in("user_id", eligibleUserIds);
 
     if (error) throw error;
 

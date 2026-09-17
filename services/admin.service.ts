@@ -12,6 +12,24 @@ interface CreateAdminUserPayload {
     isVerified?: boolean;
 }
 
+interface UpdateAdminUserPayload {
+    userId: string;
+    username: string;
+    role: string;
+    phone?: string;
+    professions?: string[];
+    isVerified: boolean;
+}
+
+interface UpdateAdminJobPayload {
+    jobId: string;
+    service: string;
+    budget: number;
+    status: string;
+    location?: string;
+    description?: string;
+}
+
 export const getDashboardStats = async () => {
     const { count: totalUsers } = await supabase.from("profiles").select("*", {
         count: "exact",
@@ -183,8 +201,80 @@ export const suspendUser = async (userId: string, suspended: boolean) => {
     if (error) throw error;
 };
 
+const runBestEffortDelete = async (
+    table: string,
+    column: string,
+    userId: string,
+) => {
+    const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq(column, userId);
+
+    // Ignore missing-table errors to keep compatibility across environments.
+    if (error && error.code !== "42P01") {
+        throw error;
+    }
+};
+
 export const deleteUser = async (userId: string) => {
+    // Keep admin delete scoped to user records managed in the Users tab.
+    await runBestEffortDelete("notifications", "user_id", userId);
+    await runBestEffortDelete("locations", "user_id", userId);
+
     const { error } = await supabase.from("profiles").delete().eq("id", userId);
+
+    if (error) throw error;
+};
+
+export const updateAdminUser = async ({
+    userId,
+    username,
+    role,
+    phone,
+    professions,
+    isVerified,
+}: UpdateAdminUserPayload) => {
+    const { error } = await supabase
+        .from("profiles")
+        .update({
+            username,
+            role,
+            phone: phone ?? null,
+            professions: professions?.length ? professions : null,
+            is_verified: isVerified,
+            verification_status: isVerified ? "verified" : "pending",
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+    if (error) throw error;
+};
+
+export const updateAdminJob = async ({
+    jobId,
+    service,
+    budget,
+    status,
+    location,
+    description,
+}: UpdateAdminJobPayload) => {
+    const { error } = await supabase
+        .from("jobs")
+        .update({
+            service,
+            budget,
+            status,
+            location: location ?? "",
+            description: description ?? "",
+        })
+        .eq("id", jobId);
+
+    if (error) throw error;
+};
+
+export const deleteAdminJob = async (jobId: string) => {
+    const { error } = await supabase.from("jobs").delete().eq("id", jobId);
 
     if (error) throw error;
 };

@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    RefreshControl,
     Text,
     TouchableOpacity,
     View,
@@ -38,6 +39,7 @@ export default function CustomerJobsScreen() {
     const [jobs, setJobs] = useState<any[]>([]);
     const [status, setStatus] = useState("all");
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const [autoReviewTriggered, setAutoReviewTriggered] = useState(false);
 
@@ -77,6 +79,15 @@ export default function CustomerJobsScreen() {
         });
     };
 
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadJobs();
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
         <View className="flex-1 bg-white px-4 pt-14">
             <Text className="text-3xl font-Jost-Bold mb-4">My Bookings</Text>
@@ -114,6 +125,13 @@ export default function CustomerJobsScreen() {
                     data={jobs}
                     keyExtractor={(item) => item.id}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            tintColor="#2a6ff2"
+                        />
+                    }
                     renderItem={({ item }) => (
                         <View className="bg-gray-100 rounded-2xl p-5 mb-4">
                             <Text className="text-lg font-Jost-Bold">

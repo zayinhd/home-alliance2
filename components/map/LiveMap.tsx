@@ -12,7 +12,21 @@ import { useLocation } from "@/hooks/useLocation";
 
 import { updateUserLocation } from "@/services/location.service";
 
-export default function LiveMap() {
+interface LiveMapProps {
+    trackedUserIds?: string[];
+}
+
+const removeStaleChannels = (topicPrefix: string) => {
+    const channels = supabase.getChannels();
+
+    channels.forEach((channel: any) => {
+        if (channel?.topic?.startsWith(`realtime:${topicPrefix}`)) {
+            supabase.removeChannel(channel);
+        }
+    });
+};
+
+export default function LiveMap({ trackedUserIds }: LiveMapProps) {
     const { user } = useAuth();
 
     const { location } = useLocation();
@@ -20,8 +34,15 @@ export default function LiveMap() {
     const [nearbyUsers, setNearbyUsers] = useState<any[]>([]);
     const [trackingEnabled, setTrackingEnabled] = useState(false);
 
+    const trackedIdsKey = (trackedUserIds || []).join(",");
+
     useEffect(() => {
         if (!user?.id) return;
+
+        const topicPrefix = `profile-tracking-${user.id}`;
+
+        // Guard against HMR/strict-mode remounts leaving a subscribed channel with the same topic.
+        removeStaleChannels(topicPrefix);
 
         const loadTrackingSetting = async () => {
             const { data, error } = await supabase
@@ -37,24 +58,23 @@ export default function LiveMap() {
 
         loadTrackingSetting();
 
-        const channel = supabase.channel(`profile-tracking-${user.id}`);
-
-        channel.on(
-            "postgres_changes",
-            {
-                event: "UPDATE",
-                schema: "public",
-                table: "profiles",
-                filter: `id=eq.${user.id}`,
-            },
-            (payload) => {
-                setTrackingEnabled(
-                    Boolean(payload.new?.location_tracking_enabled),
-                );
-            },
-        );
-
-        channel.subscribe();
+        const channel = supabase
+            .channel(`${topicPrefix}-${Date.now()}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "profiles",
+                    filter: `id=eq.${user.id}`,
+                },
+                (payload) => {
+                    setTrackingEnabled(
+                        Boolean(payload.new?.location_tracking_enabled),
+                    );
+                },
+            )
+            .subscribe();
 
         return () => {
             channel.unsubscribe();
@@ -69,8 +89,31 @@ export default function LiveMap() {
     }, [location, user, trackingEnabled]);
 
     useEffect(() => {
+        const topicPrefix = `live-locations-${user?.id || "anon"}`;
+
+        // Ensure no stale live-location subscriptions survive prior mounts.
+        removeStaleChannels(topicPrefix);
+
+        const loadLocations = async () => {
+            const { data } = await supabase
+                .from("locations")
+                .select("*");
+
+            const visibleUsers = (data || []).filter((item: any) => {
+                if (item.user_id === user?.id) return false;
+
+                if (!trackedUserIds) return true;
+
+                return trackedUserIds.includes(item.user_id);
+            });
+
+            setNearbyUsers(visibleUsers);
+        };
+
+        loadLocations();
+
         const channel = supabase
-            .channel("live-locations")
+            .channel(`${topicPrefix}-${trackedIdsKey}-${Date.now()}`)
             .on(
                 "postgres_changes",
                 {
@@ -78,14 +121,8 @@ export default function LiveMap() {
                     schema: "public",
                     table: "locations",
                 },
-                async () => {
-                    const { data } = await supabase
-                        .from("locations")
-                        .select("*");
-
-                    if (data) {
-                        setNearbyUsers(data);
-                    }
+                () => {
+                    loadLocations();
                 },
             )
             .subscribe();
@@ -93,7 +130,7 @@ export default function LiveMap() {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [user?.id, trackedIdsKey]);
 
     if (!location) {
         return <View className="flex-1 bg-gray-100" />;

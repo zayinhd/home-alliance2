@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     FlatList,
+    RefreshControl,
     Text,
     TouchableOpacity,
     View,
@@ -28,6 +29,7 @@ export default function ContractorJobsScreen() {
     const [status, setStatus] = useState("all");
     const [jobs, setJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -57,6 +59,15 @@ export default function ContractorJobsScreen() {
             Alert.alert("Error", error.message || "Unable to update booking.");
         } finally {
             setUpdatingId(null);
+        }
+    };
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadJobs();
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -96,6 +107,13 @@ export default function ContractorJobsScreen() {
                 <FlatList
                     data={jobs}
                     keyExtractor={(item) => item.id}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={handleRefresh}
+                            tintColor="#2a6ff2"
+                        />
+                    }
                     renderItem={({ item }) => (
                         <View className="bg-gray-100 rounded-2xl p-5 mb-4">
                             <Text className="text-lg font-Jost-Bold">
@@ -180,18 +198,21 @@ export default function ContractorJobsScreen() {
                                     </TouchableOpacity>
                                 )}
 
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        router.push(
-                                            "/(root)/(contractor)/tracking",
-                                        )
-                                    }
-                                    className="border border-primary px-4 py-2 rounded-xl mb-2"
-                                >
-                                    <Text className="text-primary font-Jost-Bold">
-                                        Track Customer
-                                    </Text>
-                                </TouchableOpacity>
+                                {(item.status === "accepted" ||
+                                    item.status === "in_progress") && (
+                                    <TouchableOpacity
+                                        onPress={() =>
+                                            router.push(
+                                                "/(root)/(contractor)/tracking",
+                                            )
+                                        }
+                                        className="border border-primary px-4 py-2 rounded-xl mb-2"
+                                    >
+                                        <Text className="text-primary font-Jost-Bold">
+                                            Track Customer
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
                     )}

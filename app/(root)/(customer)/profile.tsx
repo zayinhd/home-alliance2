@@ -1,4 +1,12 @@
-import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    Alert,
+    ScrollView,
+    Switch,
+    RefreshControl,
+} from "react-native";
 
 import { useEffect, useState } from "react";
 
@@ -19,29 +27,41 @@ import { supabase } from "@/lib/supabase";
 export default function CustomerProfileScreen() {
     const { user } = useAuth();
     const [profile, setProfile] = useState<any>(null);
+    const [sharingLocation, setSharingLocation] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadProfile = async () => {
+        if (!user?.id) return;
+
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select(
+                    "username, email, address, location_tracking_enabled",
+                )
+                .eq("id", user.id)
+                .single();
+
+            if (error) throw error;
+            setProfile(data || null);
+            setSharingLocation(Boolean(data?.location_tracking_enabled));
+        } catch (error: any) {
+            console.warn("Failed to load profile address", error);
+        }
+    };
 
     useEffect(() => {
-        const loadProfile = async () => {
-            if (!user?.id) return;
-
-            try {
-                const { data, error } = await supabase
-                    .from("profiles")
-                    .select(
-                        "username, email, address, location_tracking_enabled",
-                    )
-                    .eq("id", user.id)
-                    .single();
-
-                if (error) throw error;
-                setProfile(data || null);
-            } catch (error: any) {
-                console.warn("Failed to load profile address", error);
-            }
-        };
-
         loadProfile();
     }, [user?.id]);
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadProfile();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -87,8 +107,61 @@ export default function CustomerProfileScreen() {
         );
     };
 
+    const handleLocationSharingToggle = (value: boolean) => {
+        Alert.alert(
+            value ? "Enable location sharing" : "Disable location sharing",
+            value
+                ? "Allow active service providers to view your live location while your jobs are in progress?"
+                : "Stop sharing your live location with service providers?",
+            [
+                {
+                    text: "Cancel",
+                    style: "cancel",
+                },
+                {
+                    text: value ? "Enable" : "Disable",
+                    onPress: async () => {
+                        try {
+                            if (!user?.id) return;
+
+                            const { error } = await supabase
+                                .from("profiles")
+                                .update({
+                                    location_tracking_enabled: value,
+                                })
+                                .eq("id", user.id);
+
+                            if (error) throw error;
+
+                            setSharingLocation(value);
+                            setProfile((prev: any) => ({
+                                ...(prev || {}),
+                                location_tracking_enabled: value,
+                            }));
+                        } catch (error: any) {
+                            Alert.alert(
+                                "Error",
+                                error.message ||
+                                    "Unable to update location sharing setting.",
+                            );
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
     return (
-        <ScrollView className="flex-1 bg-white px-6 pt-20">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-20"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             {/* PROFILE */}
 
             <View className="items-center">
@@ -120,6 +193,26 @@ export default function CustomerProfileScreen() {
                         ? "Location tracking is active"
                         : "Location tracking is off"}
                 </Text>
+
+                <View className="w-full mt-4 rounded-2xl bg-gray-100 p-4">
+                    <View className="flex-row items-center justify-between">
+                        <View className="flex-1 mr-4">
+                            <Text className="font-Jost-Bold text-sm text-gray-800">
+                                Allow customer location tracking
+                            </Text>
+                            <Text className="text-gray-500 mt-1 text-xs">
+                                Active providers can only track your location while a job is accepted or in progress.
+                            </Text>
+                        </View>
+
+                        <Switch
+                            value={sharingLocation}
+                            onValueChange={handleLocationSharingToggle}
+                            trackColor={{ false: "#d1d5db", true: "#2a6ff2" }}
+                            thumbColor="#ffffff"
+                        />
+                    </View>
+                </View>
             </View>
 
             {/* ROLE SWITCH */}
