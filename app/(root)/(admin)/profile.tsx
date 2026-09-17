@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    RefreshControl,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -18,32 +19,45 @@ export default function AdminProfileScreen() {
     const [profile, setProfile] = useState<any>(null);
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadProfile = async () => {
+        if (!user?.id) {
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const [{ data }, dashboardStats] = await Promise.all([
+                supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", user.id)
+                    .single(),
+                getDashboardStats(),
+            ]);
+
+            setProfile(data);
+            setStats(dashboardStats);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const loadProfile = async () => {
-            if (!user?.id) return;
-
-            try {
-                setLoading(true);
-
-                const [{ data }, dashboardStats] = await Promise.all([
-                    supabase
-                        .from("profiles")
-                        .select("*")
-                        .eq("id", user.id)
-                        .single(),
-                    getDashboardStats(),
-                ]);
-
-                setProfile(data);
-                setStats(dashboardStats);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         loadProfile();
     }, [user?.id]);
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await loadProfile();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -78,7 +92,16 @@ export default function AdminProfileScreen() {
         : 0;
 
     return (
-        <ScrollView className="flex-1 bg-white px-6 pt-16">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-16"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             <Text className="text-3xl font-Jost-Bold mb-2">Admin Profile</Text>
             <Text className="text-gray-500 mb-6">
                 Monitor account health and system performance.

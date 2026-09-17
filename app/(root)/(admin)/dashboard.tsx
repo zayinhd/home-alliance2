@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    RefreshControl,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -12,21 +13,32 @@ import { getDashboardStats } from "@/services/admin.service";
 export default function AdminDashboardScreen() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const load = async () => {
+        try {
+            setLoading(true);
+            const data = await getDashboardStats();
+            setStats(data);
+        } catch (error) {
+            console.warn("Failed to load admin dashboard", error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await getDashboardStats();
-                setStats(data);
-            } catch (error) {
-                console.warn("Failed to load admin dashboard", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         load();
     }, []);
+
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            await load();
+        } finally {
+            setRefreshing(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -37,7 +49,16 @@ export default function AdminDashboardScreen() {
     }
 
     return (
-        <ScrollView className="flex-1 bg-white px-6 pt-16">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-16"
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             <Text className="text-3xl font-Jost-Bold mb-6">
                 Admin Dashboard
             </Text>

@@ -2,6 +2,7 @@ import { Alert, Platform } from "react-native";
 
 type SharingModule = typeof import("expo-sharing");
 type PrintModule = typeof import("expo-print");
+type FileSystemModule = typeof import("expo-file-system/legacy");
 
 const getSharingModule = async (): Promise<SharingModule | null> => {
     try {
@@ -14,6 +15,14 @@ const getSharingModule = async (): Promise<SharingModule | null> => {
 const getPrintModule = async (): Promise<PrintModule | null> => {
     try {
         return await import("expo-print");
+    } catch {
+        return null;
+    }
+};
+
+const getFileSystemModule = async (): Promise<FileSystemModule | null> => {
+    try {
+        return await import("expo-file-system/legacy");
     } catch {
         return null;
     }
@@ -35,6 +44,9 @@ const escapeHtml = (value: string) =>
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+
+const sanitizeFileName = (value: string) =>
+    value.replace(/[^a-zA-Z0-9-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 
 const buildReportHtml = ({
     title,
@@ -166,6 +178,7 @@ export const exportReportAsPdf = async ({
     }
 
     const sharing = await getSharingModule();
+    const fileSystem = await getFileSystemModule();
     const html = buildReportHtml({ title, subtitle, headers, rows });
 
     if (Platform.OS === "web") {
@@ -175,9 +188,21 @@ export const exportReportAsPdf = async ({
 
     try {
         const { uri } = await print.printToFileAsync({ html });
+        let pdfUri = uri;
+
+        if (fileSystem?.documentDirectory && fileSystem.copyAsync) {
+            const safeName = sanitizeFileName(fileName) || `report-${Date.now()}`;
+            const finalName = safeName.toLowerCase().endsWith(".pdf")
+                ? safeName
+                : `${safeName}.pdf`;
+            const destination = `${fileSystem.documentDirectory}${finalName}`;
+
+            await fileSystem.copyAsync({ from: uri, to: destination });
+            pdfUri = destination;
+        }
 
         if (sharing && (await sharing.isAvailableAsync())) {
-            await sharing.shareAsync(uri, {
+            await sharing.shareAsync(pdfUri, {
                 dialogTitle: `Share ${title}`,
                 mimeType: "application/pdf",
                 UTI: ".pdf",

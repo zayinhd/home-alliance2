@@ -46,6 +46,11 @@ export default function ContractorTrackingScreen() {
         [locations],
     );
 
+    const activeCustomerIds = useMemo(
+        () => jobs.map((job: any) => job.customer_id).filter(Boolean),
+        [jobs],
+    );
+
     if (loading) {
         return (
             <View className="flex-1 items-center justify-center bg-white">
@@ -64,7 +69,7 @@ export default function ContractorTrackingScreen() {
             </Text>
 
             <View className="h-72 rounded-2xl overflow-hidden mb-5">
-                <LiveMap />
+                <LiveMap trackedUserIds={activeCustomerIds} />
             </View>
 
             <FlatList

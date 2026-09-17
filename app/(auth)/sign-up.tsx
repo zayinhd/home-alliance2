@@ -87,6 +87,7 @@ export default function SignUpScreen() {
                 label="Password"
                 placeholder="Enter password"
                 secureTextEntry
+                enablePasswordToggle
                 value={password}
                 onChangeText={setPassword}
             />
@@ -95,6 +96,7 @@ export default function SignUpScreen() {
                 label="Confirm Password"
                 placeholder="Confirm password"
                 secureTextEntry
+                enablePasswordToggle
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
             />
@@ -139,7 +141,7 @@ export default function SignUpScreen() {
                                     : "text-black"
                             }`}
                         >
-                            Contractor
+                            Service Provider
                         </Text>
                     </TouchableOpacity>
                 </View>

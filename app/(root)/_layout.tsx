@@ -1,13 +1,13 @@
 import { Stack } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Platform } from "react-native";
 
 export default function RootLayout() {
     return (
         <Stack
             screenOptions={{
                 headerShown: false,
-                gestureEnabled: true,
-                fullScreenGestureEnabled: true,
+                gestureEnabled: Platform.OS !== "ios",
+                fullScreenGestureEnabled: Platform.OS !== "ios",
             }}
         />
     );

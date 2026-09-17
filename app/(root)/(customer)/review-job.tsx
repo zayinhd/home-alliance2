@@ -122,6 +122,7 @@ export default function ReviewJobScreen() {
                     value={comment}
                     onChangeText={setComment}
                     placeholder="Write your review..."
+                    placeholderTextColor="#6b7280"
                     multiline
                     numberOfLines={6}
                     textAlignVertical="top"

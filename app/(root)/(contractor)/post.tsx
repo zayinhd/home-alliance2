@@ -1,6 +1,13 @@
 import { useState } from "react";
 
-import { View, Text, Alert, TouchableOpacity } from "react-native";
+import {
+    View,
+    Text,
+    Alert,
+    TouchableOpacity,
+    ScrollView,
+    RefreshControl,
+} from "react-native";
 
 import { router } from "expo-router";
 
@@ -20,6 +27,7 @@ export default function ContractorPostScreen() {
     const [description, setDescription] = useState("");
 
     const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     const handleCreatePost = async () => {
         try {
@@ -69,8 +77,28 @@ export default function ContractorPostScreen() {
         }
     };
 
+    const handleRefresh = async () => {
+        try {
+            setRefreshing(true);
+            setTitle("");
+            setDescription("");
+        } finally {
+            setRefreshing(false);
+        }
+    };
+
     return (
-        <View className="flex-1 bg-white px-6 pt-16">
+        <ScrollView
+            className="flex-1 bg-white px-6 pt-16"
+            contentContainerStyle={{ paddingBottom: 20 }}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor="#2a6ff2"
+                />
+            }
+        >
             <View className="flex-row items-center justify-between mb-8">
                 <Text className="text-3xl font-Jost-Bold">Create Post</Text>
 
@@ -115,6 +143,6 @@ export default function ContractorPostScreen() {
                     </Text>
                 </TouchableOpacity>
             </View>
-        </View>
+        </ScrollView>
     );
 }

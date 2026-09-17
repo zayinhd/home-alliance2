@@ -84,7 +84,7 @@ export default function RoleSwitcher() {
         >
             <View className="flex-1 mr-4">
                 <Text className="font-Jost-Bold text-base">
-                    {isCustomerView ? "Become a Service Provider" : "Customer Mode"}
+                    {isCustomerView ? "Become a Service Provider" : "Service Provider Mode"}
                 </Text>
 
                 <Text className="text-gray-500 text-sm">
